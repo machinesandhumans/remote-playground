@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chopstix · Piano Basics</title>
+  <meta name="description" content="Learn the major scale, all 12 keys, and basic chords on a 3D piano.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎹</text></svg>">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">🎹 Chopstix <span>Piano basics</span></div>
+    <nav id="lessonTabs" class="lesson-tabs" role="tablist" aria-label="Lessons">
+      <button role="tab"><b>1</b> Steps &amp; the major scale</button>
+      <button role="tab"><b>2</b> All 12 keys</button>
+      <button role="tab"><b>3</b> Chords</button>
+    </nav>
+  </header>
+
+  <section class="piano-wrap">
+    <div id="piano" class="piano"></div>
+    <div class="input-bar">
+      <button id="micBtn" class="btn mic">🎤 Listen to my piano</button>
+      <div class="meter-wrap" hidden><div id="meter" class="meter"></div></div>
+      <div class="heard-box">Last note: <span id="heard" class="heard">–</span></div>
+      <span id="micState" class="small-note"></span>
+      <span id="midiState" class="small-note"></span>
+      <span class="spacer"></span>
+      <label class="small-label">Key labels
+        <select id="labels" class="select">
+          <option value="names">Note names</option>
+          <option value="keys">Computer keys</option>
+          <option value="none">None</option>
+        </select>
+      </label>
+      <button id="soundBtn" class="btn small secondary" aria-pressed="false">🔊 Sound on</button>
+      <details class="help">
+        <summary>How do I answer?</summary>
+        <div class="help-body">
+          <p><b>Tap or click</b> the keys on the screen.</p>
+          <p><b>Computer keyboard:</b> the letters <kbd>A S D F G H J K</kbd> are white keys starting at C, and <kbd>W E T Y U</kbd> are the black keys. Pick “Computer keys” under Key labels to see them on the piano.</p>
+          <p><b>Your real piano:</b> press “Listen to my piano” and allow the microphone. Play one note at a time for best results. Chords work best if you play the notes one after another.</p>
+          <p><b>MIDI keyboard:</b> plug it in by USB (Chrome or Edge) and just play.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <main id="lesson" class="lesson"></main>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
