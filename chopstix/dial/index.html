@@ -462,6 +462,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     g.addEventListener('pointerdown', (ev) => {
       ev.preventDefault();
       tone(midi);
+      heard(midi); // tapped keys light green (in the scale) or red (not in it), like played ones
       g.style.opacity = .72;
     });
     const up = () => { g.style.opacity = ''; };
@@ -479,8 +480,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     let rms = 0;
     for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
     rms = Math.sqrt(rms / n);
-    if (rms < 0.005) return { freq: -1, rms, clarity: 0 };
-    const minLag = Math.floor(sr / 2100), maxLag = Math.min(Math.floor(sr / 55), n >> 1), size = n - maxLag;
+    if (rms < 0.0006) return { freq: -1, rms, clarity: 0 };
+    const minLag = Math.floor(sr / 2100), maxLag = Math.min(Math.floor(sr / 70), n >> 1), size = n - maxLag;
     const nsdf = new Float32Array(maxLag + 1);
     let best = 0;
     for (let lag = minLag; lag <= maxLag; lag++) {
@@ -548,7 +549,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       an.connect(mute);
       mute.connect(c.destination);
       mic = { stream, ctx: c, an, buf: new Float32Array(2048), sr: c.sampleRate, cand: null, stable: 0, last: null, armed: true, avg: 0, quietFor: 0 };
-      mic.timer = setInterval(listen, 35);
+      mic.timer = setInterval(listen, 16);
       micBtn.setAttribute('aria-pressed', 'true');
       micBtn.lastChild.textContent = 'Listening';
       document.body.classList.add('listening');
@@ -609,17 +610,17 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     meterFill.style.width = (lvl * 100).toFixed(0) + '%';
     if (rms < 0.0005) {
       mic.quietFor++;
-      if (mic.quietFor === 90 && !heardEl.querySelector('b')) heardEl.textContent = 'The microphone isn\'t picking up any sound. Check nothing is covering it, then tap Listen off and on.';
+      if (mic.quietFor === 190 && !heardEl.querySelector('b')) heardEl.textContent = 'The microphone isn\'t picking up any sound. Check nothing is covering it, then tap Listen off and on.';
     } else mic.quietFor = 0;
     // A jump in loudness means a new key was struck; silence re-arms too.
-    if (rms > mic.avg * 1.8 + 0.002 || rms < 0.002) mic.armed = true;
-    if (rms < 0.002) mic.last = null;
+    if (rms > mic.avg * 1.8 + 0.0005 || rms < 0.0005) mic.armed = true;
+    if (rms < 0.0005) mic.last = null;
     mic.avg = mic.avg * 0.8 + rms * 0.2;
     if (performance.now() < busyUntil) return; // don't "hear" our own speaker
-    if (freq > 0 && rms > 0.003 && clarity > 0.75) {
+    if (freq > 0 && rms > 0.0008 && clarity > 0.75) {
       const m = Math.round(69 + 12 * Math.log2(freq / 440));
       if (m === mic.cand) mic.stable++; else { mic.cand = m; mic.stable = 1; }
-      if (mic.stable >= 3 && (mic.armed || m !== mic.last)) {
+      if (mic.stable >= 2 && (mic.armed || m !== mic.last)) {
         mic.last = m;
         mic.armed = false;
         heard(m);
