@@ -52,6 +52,9 @@ body {
   background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 6px 12px; cursor: pointer;
   box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05);
 }
+.meter { display: none; width: 72px; height: 6px; border-radius: 3px; background: var(--seam); overflow: hidden; margin-right: 10px; }
+.meter span { display: block; height: 100%; width: 0%; background: var(--red); transition: width .06s linear; }
+.listening .meter { display: inline-block; }
 .mic { display: inline-flex; align-items: center; gap: 8px; margin-right: 8px; }
 .mic .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--seam-dark); transition: background .2s, box-shadow .2s, transform .08s; }
 .mic[aria-pressed="true"] { color: var(--ink-strong); }
@@ -95,6 +98,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     <span class="title">Major scale</span>
     <span id="soundMsg" class="sound-msg" role="status" hidden></span>
     <span class="heard" id="heard" role="status" aria-live="polite"></span>
+    <span class="meter" id="meter" aria-hidden="true"><span id="meterFill"></span></span>
     <button id="mic" class="sound mic" aria-pressed="false"><span class="dot"></span>Listen</button>
     <button id="sound" class="sound" aria-pressed="true">Sound on</button>
   </div>
@@ -493,6 +497,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   const micBtn = document.getElementById('mic');
   const heardEl = document.getElementById('heard');
   const micDot = micBtn.querySelector('.dot');
+  const meterFill = document.getElementById('meterFill');
   micBtn.addEventListener('click', async () => {
     if (mic) { stopMic(); return; }
     if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -500,6 +505,10 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       return;
     }
     heardEl.textContent = 'Asking for the microphone…';
+    // Make the listening context right here in the tap, so iPad lets it run.
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const mctx = new AC();
+    mctx.resume().catch(() => {});
     micStarting = true;
     setAudioSession('play-and-record');
     let stream;
@@ -514,21 +523,29 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     } catch (e) {
       micStarting = false;
       setAudioSession('playback');
+      mctx.close().catch(() => {});
       showMicError(e);
       return;
     }
     micStarting = false;
     try {
-      const c = unlock() || new (window.AudioContext || window.webkitAudioContext)();
+      const c = mctx;
       if (c.state !== 'running') await c.resume().catch(() => {});
       const src = c.createMediaStreamSource(stream);
       const an = c.createAnalyser();
       an.fftSize = 2048;
+      // Safari only processes audio that reaches the speakers, so route the analyser
+      // to the output through a silent gain node.
+      const mute = c.createGain();
+      mute.gain.value = 0;
       src.connect(an);
-      mic = { stream, an, buf: new Float32Array(2048), sr: c.sampleRate, cand: null, stable: 0, last: null, armed: true, avg: 0 };
+      an.connect(mute);
+      mute.connect(c.destination);
+      mic = { stream, ctx: c, an, buf: new Float32Array(2048), sr: c.sampleRate, cand: null, stable: 0, last: null, armed: true, avg: 0, quietFor: 0 };
       mic.timer = setInterval(listen, 35);
       micBtn.setAttribute('aria-pressed', 'true');
       micBtn.lastChild.textContent = 'Listening';
+      document.body.classList.add('listening');
       heardEl.classList.remove('err');
       heardEl.textContent = 'Play a note on your piano';
     } catch (e) {
@@ -566,22 +583,34 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     setAudioSession('playback');
     clearInterval(mic.timer);
     mic.stream.getTracks().forEach((t) => t.stop());
+    mic.ctx.close().catch(() => {});
+    meterFill.style.width = '0%';
     mic = null;
     micBtn.setAttribute('aria-pressed', 'false');
     micBtn.lastChild.textContent = 'Listen';
+    document.body.classList.remove('listening');
     micDot.style.transform = '';
     heardEl.textContent = '';
   }
   function listen() {
+    // iPad can pause ("interrupt") the context when the audio mode changes; wake it up.
+    if (mic.ctx.state !== 'running') mic.ctx.resume().catch(() => {});
     mic.an.getFloatTimeDomainData(mic.buf);
     const { freq, rms, clarity } = detectPitch(mic.buf, mic.sr);
     micDot.style.transform = `scale(${1 + Math.min(1.2, rms * 12)})`;
+    // Level meter: log scale so quiet rooms still show movement.
+    const lvl = rms > 0 ? Math.max(0, Math.min(1, (20 * Math.log10(rms) + 60) / 50)) : 0;
+    meterFill.style.width = (lvl * 100).toFixed(0) + '%';
+    if (rms < 0.0005) {
+      mic.quietFor++;
+      if (mic.quietFor === 90 && !heardEl.querySelector('b')) heardEl.textContent = 'The microphone isn\'t picking up any sound. Check nothing is covering it, then tap Listen off and on.';
+    } else mic.quietFor = 0;
     // A jump in loudness means a new key was struck; silence re-arms too.
-    if (rms > mic.avg * 1.8 + 0.004 || rms < 0.006) mic.armed = true;
-    if (rms < 0.006) mic.last = null;
+    if (rms > mic.avg * 1.8 + 0.002 || rms < 0.002) mic.armed = true;
+    if (rms < 0.002) mic.last = null;
     mic.avg = mic.avg * 0.8 + rms * 0.2;
     if (performance.now() < busyUntil) return; // don't "hear" our own speaker
-    if (freq > 0 && rms > 0.01 && clarity > 0.8) {
+    if (freq > 0 && rms > 0.003 && clarity > 0.75) {
       const m = Math.round(69 + 12 * Math.log2(freq / 440));
       if (m === mic.cand) mic.stable++; else { mic.cand = m; mic.stable = 1; }
       if (mic.stable >= 3 && (mic.armed || m !== mic.last)) {
