@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Chopstix Scale Dial</title>
+<style>
+/* Layout: one centered column — keyboard panel on top, dial plate below, all on a white material surface. */
+:root {
+  --surface: #f3f3f1;
+  --panel: #fbfbfa;
+  --seam: #dcdcd8;
+  --seam-dark: #c9c9c4;
+  --ink: #9a9a95;
+  --ink-strong: #55554f;
+  --black-key: #2b2b2d;
+  --black-key-edge: #1d1d1f;
+  --red: #ff2b2b;
+  --red-soft: rgba(255, 43, 43, .35);
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--surface);
+  color: var(--ink-strong);
+  font-family: var(--font);
+  min-height: 100%;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-tap-highlight-color: transparent;
+}
+.stage {
+  max-width: 760px; margin: 0 auto; padding-block: 28px 40px;
+  display: flex; flex-direction: column; align-items: center; gap: 22px;
+}
+.topline { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+.title { font-size: 13px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink); font-weight: 600; }
+.sound {
+  font: inherit; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05);
+}
+.sound[aria-pressed="true"] { color: var(--ink-strong); }
+.sound:focus-visible { outline: 2px solid var(--red-soft); outline-offset: 4px; }
+.dial:focus { outline: none; }
+.focus-ring { opacity: 0; }
+.dial:focus-visible .focus-ring { opacity: 1; }
+svg { display: block; width: 100%; height: auto; overflow: visible; user-select: none; -webkit-user-select: none; }
+.keys-wrap { width: 100%; }
+.dial-wrap { width: min(100%, 420px); }
+.dial { cursor: grab; touch-action: none; }
+.dial.dragging { cursor: grabbing; }
+.key { cursor: pointer; }
+.lbl { font-family: var(--font); font-weight: 600; text-anchor: middle; dominant-baseline: central; transition: fill .25s; }
+.ring { transition: stroke .25s, fill .25s; }
+.on .lbl { fill: var(--red); }
+.on .ring { stroke: var(--red); }
+.glow { opacity: 0; transition: opacity .3s; }
+.on .glow { opacity: 1; }
+.note-name { fill: var(--ink); font-size: 15px; transition: fill .25s; }
+.note-name.active { fill: var(--red); }
+.center-letter { fill: var(--red); font-size: 64px; font-weight: 600; }
+.hint { font-size: 13px; color: var(--ink); text-align: center; margin: 0; }
+@media (prefers-reduced-motion: reduce) { .lbl, .ring, .glow, .note-name { transition: none; } }
+</style>
+
+<main class="stage">
+  <div class="topline">
+    <span class="title">Major scale</span>
+    <button id="sound" class="sound" aria-pressed="true">Sound on</button>
+  </div>
+
+  <div class="keys-wrap">
+    <svg id="keys" viewBox="0 0 760 330" role="img" aria-label="Piano keys"></svg>
+  </div>
+
+  <div class="dial-wrap">
+    <svg id="dialSvg" viewBox="-210 -210 420 420" aria-hidden="false">
+      <defs>
+        <!-- base plate: flat white with a seam -->
+        <radialGradient id="plate" cx="50%" cy="45%" r="60%">
+          <stop offset="0" stop-color="#fdfdfc"/><stop offset="1" stop-color="#f1f1ef"/>
+        </radialGradient>
+        <!-- concave dish: shadow on the upper-left inner wall, light pooling lower-right -->
+        <radialGradient id="dish" cx="58%" cy="62%" r="62%">
+          <stop offset="0" stop-color="#ffffff"/>
+          <stop offset=".62" stop-color="#f8f8f7"/>
+          <stop offset=".88" stop-color="#e9e9e6"/>
+          <stop offset="1" stop-color="#d9d9d5"/>
+        </radialGradient>
+        <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#cfcfca"/><stop offset=".5" stop-color="#ececea"/><stop offset="1" stop-color="#ffffff"/>
+        </linearGradient>
+        <linearGradient id="dimple" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#bcbcb6"/><stop offset=".55" stop-color="#ececea"/><stop offset="1" stop-color="#ffffff"/>
+        </linearGradient>
+        <filter id="redGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="2"/>
+        </filter>
+      </defs>
+      <g id="names"></g>
+      <circle r="150" fill="url(#plate)" stroke="var(--seam)" stroke-width="1"/>
+      <circle r="138" fill="none" stroke="#ffffff" stroke-width="1.5" opacity=".9"/>
+      <g id="dial" class="dial" tabindex="0" role="slider" aria-label="Key" aria-valuemin="0" aria-valuemax="11">
+        <circle class="focus-ring" r="142" fill="none" stroke="var(--red-soft)" stroke-width="3"/>
+        <circle r="134" fill="url(#rim)"/>
+        <circle r="130" fill="url(#dish)"/>
+        <!-- inner wall shadow -->
+        <circle r="128" fill="none" stroke="#bdbdb8" stroke-width="6" opacity=".35" filter="url(#soft)" transform="translate(-3,-4)"/>
+        <g id="rotor">
+          <circle cy="-104" r="15" fill="url(#dimple)" stroke="#d0d0cb" stroke-width="1"/>
+          <circle cy="-104" r="15" fill="none" stroke="#9d9d98" stroke-width="3" opacity=".45" filter="url(#soft)" transform="translate(-1.5,-2)"/>
+          <path d="M 4 -90.5 A 15 15 0 0 0 13.5 -99" fill="none" stroke="#ffffff" stroke-width="1.5" opacity=".9"/>
+          <!-- full-face hit area so the dial turns from anywhere -->
+          <circle r="134" fill="transparent"/>
+        </g>
+        <text id="center" class="lbl center-letter" filter="url(#redGlow)" y="2">C</text>
+      </g>
+    </svg>
+  </div>
+  <p class="hint">Turn the dial to choose a key. Tap a piano key to hear it.</p>
+</main>
+
+<script>
+(() => {
+  const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+  const STEPS = [2, 2, 1, 2, 2, 2, 1];
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs = {}, parent) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+
+  // ---------- Keyboard: B3 … C5, with half-hidden A♯ and C♯ at the edges ----------
+  const keysSvg = document.getElementById('keys');
+  const PX = 20, PY = 14, W = 80, H = 300, BW = 48, BH = 182;
+  const whites = [59, 60, 62, 64, 65, 67, 69, 71, 72]; // B3 C D E F G A B C5
+  const keyEls = []; // {midi, g}
+  // material panel with a seam around the keybed
+  el('rect', { x: 0, y: 0, width: 760, height: 330, rx: 16, fill: '#fbfbfa', stroke: '#dcdcd8' }, keysSvg);
+  el('rect', { x: PX - 4, y: PY - 4, width: W * 9 + 8, height: H + 8, rx: 6, fill: '#ececea', stroke: '#d3d3cf' }, keysSvg);
+  const clip = el('clipPath', { id: 'bed' }, el('defs', {}, keysSvg));
+  el('rect', { x: PX, y: PY, width: W * 9, height: H, rx: 3 }, clip);
+  const bed = el('g', { 'clip-path': 'url(#bed)' }, keysSvg);
+  const defs = keysSvg.querySelector('defs');
+  const wg = el('linearGradient', { id: 'whiteKey', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: 0, 'stop-color': '#f2f2f0' }, wg); el('stop', { offset: .12, 'stop-color': '#ffffff' }, wg); el('stop', { offset: 1, 'stop-color': '#fafaf9' }, wg);
+  const bg = el('linearGradient', { id: 'blackKey', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: 0, 'stop-color': '#1f1f21' }, bg); el('stop', { offset: 1, 'stop-color': '#3a3a3d' }, bg);
+  const glowF = el('filter', { id: 'keyGlow', x: '-80%', y: '-80%', width: '260%', height: '260%' }, defs);
+  el('feGaussianBlur', { stdDeviation: 6 }, glowF);
+
+  function label(g, cx, cy, text, dark) {
+    el('circle', { class: 'glow', cx, cy, r: 20, fill: 'var(--red)', opacity: 0, filter: 'url(#keyGlow)', style: 'fill-opacity:.45' }, g);
+    el('circle', { class: 'ring', cx, cy, r: 17, fill: dark ? '#2f2f32' : '#fbfbfa', stroke: dark ? '#4a4a4e' : '#d6d6d1', 'stroke-width': 1.5 }, g);
+    const t = el('text', { class: 'lbl', x: cx, y: cy + 1, 'font-size': text.length > 1 ? 14 : 17, fill: dark ? '#8d8d92' : 'var(--ink)' }, g);
+    t.textContent = text;
+  }
+
+  whites.forEach((m, i) => {
+    const g = el('g', { class: 'key', 'data-midi': m }, bed);
+    const x = PX + i * W;
+    el('rect', { x: x + 1, y: PY - 2, width: W - 2, height: H + 2, rx: 4, fill: 'url(#whiteKey)', stroke: '#d9d9d5' }, g);
+    label(g, x + W / 2, PY + H - 42, NAMES[m % 12], false);
+    keyEls.push({ midi: m, g });
+  });
+  // black keys sit on the boundary after these white keys (index into whites); -1 / 9 are the edge halves
+  const blacks = [[58, 0], [61, 2], [63, 3], [66, 5], [68, 6], [70, 7], [73, 9]];
+  blacks.forEach(([m, boundary]) => {
+    const g = el('g', { class: 'key', 'data-midi': m }, bed);
+    // The two edge keys peek in from outside the keybed; nudge them in so their labels fit.
+    const nudge = boundary === 0 ? 12 : boundary === 9 ? -12 : 0;
+    const cx = PX + boundary * W + nudge;
+    const lx = boundary === 0 ? PX + 19 : boundary === 9 ? PX + 9 * W - 19 : cx;
+    el('rect', { x: cx - BW / 2 + 3, y: PY - 2, width: BW, height: BH + 4, rx: 5, fill: '#000', opacity: .12 }, g);
+    el('rect', { x: cx - BW / 2, y: PY - 2, width: BW, height: BH, rx: 5, fill: 'url(#blackKey)', stroke: '#141416' }, g);
+    label(g, lx, PY + BH - 32, NAMES[m % 12], true);
+    keyEls.push({ midi: m, g });
+  });
+  // re-append black keys last so they draw on top
+  keyEls.filter((k) => [1, 3, 6, 8, 10].includes(k.midi % 12)).forEach((k) => bed.appendChild(k.g));
+
+  // ---------- Dial ----------
+  const names = document.getElementById('names');
+  const nameEls = NAMES.map((n, i) => {
+    const a = (i * 30 - 90) * Math.PI / 180;
+    el('circle', { cx: Math.cos(a) * 160, cy: Math.sin(a) * 160, r: 2, fill: '#c9c9c4' }, names);
+    const t = el('text', { class: 'lbl note-name', x: Math.cos(a) * 186, y: Math.sin(a) * 186 }, names);
+    t.textContent = n;
+    t.style.cursor = 'pointer';
+    t.addEventListener('click', () => { setKey(i, true); animateTo(nearestTurn(i * 30)); });
+    return t;
+  });
+  const dial = document.getElementById('dial');
+  const rotor = document.getElementById('rotor');
+  const center = document.getElementById('center');
+  let rotation = 0; // degrees, unbounded
+  let key = 0;
+
+  function render() {
+    rotor.setAttribute('transform', `rotate(${rotation})`);
+  }
+  function nearestTurn(target) {
+    // same visual angle as target, closest to the current rotation
+    return target + 360 * Math.round((rotation - target) / 360);
+  }
+  function setKey(k, play) {
+    k = ((k % 12) + 12) % 12;
+    const changed = k !== key;
+    key = k;
+    center.textContent = NAMES[k];
+    center.setAttribute('font-size', NAMES[k].length > 1 ? 56 : 64);
+    nameEls.forEach((t, i) => t.classList.toggle('active', i === k));
+    const pcs = new Set();
+    let p = k; pcs.add(p);
+    STEPS.forEach((s) => { p = (p + s) % 12; pcs.add(p); });
+    keyEls.forEach(({ midi, g }) => g.classList.toggle('on', pcs.has(midi % 12)));
+    dial.setAttribute('aria-valuenow', k);
+    dial.setAttribute('aria-valuetext', `${NAMES[k]} major`);
+    if (changed) tick();
+    if (play) playScale();
+  }
+  let anim = null;
+  function animateTo(target) {
+    cancelAnimationFrame(anim);
+    const from = rotation, t0 = performance.now(), dur = 260;
+    const step = (t) => {
+      const u = Math.min(1, (t - t0) / dur);
+      const e = 1 - Math.pow(1 - u, 3);
+      rotation = from + (target - from) * e;
+      render();
+      if (u < 1) anim = requestAnimationFrame(step);
+    };
+    anim = requestAnimationFrame(step);
+  }
+
+  const svg = document.getElementById('dialSvg');
+  function angleOf(ev) {
+    const r = svg.getBoundingClientRect();
+    const x = ev.clientX - (r.left + r.width / 2);
+    const y = ev.clientY - (r.top + r.height / 2);
+    return Math.atan2(x, -y) * 180 / Math.PI; // 0 at top, clockwise
+  }
+  let drag = null;
+  dial.addEventListener('pointerdown', (ev) => {
+    unlock();
+    cancelAnimationFrame(anim);
+    dial.setPointerCapture(ev.pointerId);
+    dial.classList.add('dragging');
+    drag = { id: ev.pointerId, last: angleOf(ev) };
+  });
+  dial.addEventListener('pointermove', (ev) => {
+    if (!drag || ev.pointerId !== drag.id) return;
+    const a = angleOf(ev);
+    let d = a - drag.last;
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    drag.last = a;
+    rotation += d;
+    render();
+    setKey(Math.round(rotation / 30), false);
+  });
+  const end = (ev) => {
+    if (!drag || ev.pointerId !== drag.id) return;
+    drag = null;
+    dial.classList.remove('dragging');
+    const snap = Math.round(rotation / 30) * 30;
+    animateTo(snap);
+    setKey(snap / 30, true);
+  };
+  dial.addEventListener('pointerup', end);
+  dial.addEventListener('pointercancel', end);
+  dial.addEventListener('keydown', (ev) => {
+    const d = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[ev.key];
+    if (!d) return;
+    ev.preventDefault();
+    unlock();
+    const snap = Math.round(rotation / 30) * 30 + d * 30;
+    animateTo(snap);
+    setKey(snap / 30, true);
+  });
+
+  // ---------- Sound ----------
+  let ctx = null, soundOn = true, cancelScale = [];
+  const soundBtn = document.getElementById('sound');
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    soundBtn.textContent = soundOn ? 'Sound on' : 'Sound off';
+    soundBtn.setAttribute('aria-pressed', String(soundOn));
+  });
+  function unlock() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* not supported */ }
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+    }
+    if (ctx.state !== 'running') {
+      const b = ctx.createBufferSource();
+      b.buffer = ctx.createBuffer(1, 1, 22050);
+      b.connect(ctx.destination);
+      b.start(0);
+      ctx.resume().catch(() => {});
+    }
+    return ctx;
+  }
+  ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach((g) => window.addEventListener(g, unlock, true));
+  function tone(midi, when = 0, dur = 1.2, vol = .22) {
+    if (!soundOn || !ctx) return;
+    const t = ctx.currentTime + when + .01;
+    const f = 440 * Math.pow(2, (midi - 69) / 12);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + .008);
+    g.gain.exponentialRampToValueAtTime(vol * .3, t + .3);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    g.connect(ctx.destination);
+    [[1, 'triangle', 1], [2, 'sine', .3], [3, 'sine', .1]].forEach(([m, type, a]) => {
+      const o = ctx.createOscillator();
+      o.type = type; o.frequency.value = f * m;
+      const og = ctx.createGain(); og.gain.value = a;
+      o.connect(og).connect(g);
+      o.start(t); o.stop(t + dur + .05);
+    });
+  }
+  function tick() {
+    if (!soundOn || !ctx) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = 2400;
+    g.gain.setValueAtTime(.04, t); g.gain.exponentialRampToValueAtTime(.0001, t + .03);
+    o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + .04);
+  }
+  function flash(midi) {
+    const k = keyEls.find((x) => x.midi === midi);
+    if (!k) return;
+    k.g.style.opacity = .75;
+    setTimeout(() => { k.g.style.opacity = ''; }, 180);
+  }
+  function playScale() {
+    cancelScale.forEach(clearTimeout); cancelScale = [];
+    let m = 60 + key;
+    const notes = [m];
+    STEPS.forEach((s) => { m += s; notes.push(m); });
+    notes.forEach((n, i) => {
+      tone(n, i * .22, .9);
+      // light up the matching key on screen (same octave if shown, else any key with that name)
+      cancelScale.push(setTimeout(() => {
+        const on = keyEls.find((k) => k.midi === n) || keyEls.find((k) => k.midi % 12 === n % 12);
+        if (on) flash(on.midi);
+      }, i * 220));
+    });
+  }
+  keyEls.forEach(({ midi, g }) => g.addEventListener('pointerdown', () => { unlock(); tone(midi + 12 * 0); flash(midi); }));
+
+  setKey(0, false);
+  render();
+})();
+</script>
+</body>
+</html>
