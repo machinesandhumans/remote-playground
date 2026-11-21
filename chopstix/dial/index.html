@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 </head>
 <body>
 <title>Chopstix Scale Dial</title>
@@ -22,22 +24,29 @@
   --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; }
+html, body { margin: 0; height: 100%; }
 body {
   background: var(--surface);
   color: var(--ink-strong);
   font-family: var(--font);
-  min-height: 100%;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow: hidden;
+  padding-left: max(24px, env(safe-area-inset-left, 0px));
+  padding-right: max(24px, env(safe-area-inset-right, 0px));
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
+/* Built for an iPad held sideways: everything fits one screen, no scrolling. */
 .stage {
-  max-width: 760px; margin: 0 auto; padding-block: 28px 40px;
-  display: flex; flex-direction: column; align-items: center; gap: 22px;
+  height: 100%; max-width: 1280px; margin: 0 auto;
+  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
+  display: grid; grid-template-rows: auto minmax(0, 56fr) minmax(0, 44fr); gap: 2vh;
+  justify-items: center;
 }
 .topline { width: 100%; display: flex; justify-content: space-between; align-items: center; }
-.title { font-size: 13px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink); font-weight: 600; }
+.title { font-size: 14px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink); font-weight: 600; }
 .sound {
   font: inherit; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink);
   background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 6px 12px; cursor: pointer;
@@ -48,9 +57,8 @@ body {
 .dial:focus { outline: none; }
 .focus-ring { opacity: 0; }
 .dial:focus-visible .focus-ring { opacity: 1; }
-svg { display: block; width: 100%; height: auto; overflow: visible; user-select: none; -webkit-user-select: none; }
-.keys-wrap { width: 100%; }
-.dial-wrap { width: min(100%, 420px); }
+svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; width: auto; height: 100%; }
+.keys-wrap, .dial-wrap { width: 100%; min-height: 0; display: flex; justify-content: center; align-items: center; }
 .dial { cursor: grab; touch-action: none; }
 .dial.dragging { cursor: grabbing; }
 .key { cursor: pointer; }
@@ -60,10 +68,9 @@ svg { display: block; width: 100%; height: auto; overflow: visible; user-select:
 .on .ring { stroke: var(--red); }
 .glow { opacity: 0; transition: opacity .3s; }
 .on .glow { opacity: 1; }
-.note-name { fill: var(--ink); font-size: 15px; transition: fill .25s; }
+.note-name { fill: var(--ink); font-size: 20px; transition: fill .25s; }
 .note-name.active { fill: var(--red); }
 .center-letter { fill: var(--red); font-size: 64px; font-weight: 600; }
-.hint { font-size: 13px; color: var(--ink); text-align: center; margin: 0; }
 @media (prefers-reduced-motion: reduce) { .lbl, .ring, .glow, .note-name { transition: none; } }
 </style>
 
@@ -125,7 +132,6 @@ svg { display: block; width: 100%; height: auto; overflow: visible; user-select:
       </g>
     </svg>
   </div>
-  <p class="hint">Turn the dial to choose a key. Tap a piano key to hear it.</p>
 </main>
 
 <script>
@@ -230,13 +236,15 @@ svg { display: block; width: 100%; height: auto; overflow: visible; user-select:
     if (play) playScale();
   }
   let anim = null;
-  function animateTo(target) {
+  let target = 0;
+  function animateTo(to) {
+    target = to;
     cancelAnimationFrame(anim);
     const from = rotation, t0 = performance.now(), dur = 260;
     const step = (t) => {
       const u = Math.min(1, (t - t0) / dur);
       const e = 1 - Math.pow(1 - u, 3);
-      rotation = from + (target - from) * e;
+      rotation = from + (to - from) * e;
       render();
       if (u < 1) anim = requestAnimationFrame(step);
     };
@@ -284,7 +292,7 @@ svg { display: block; width: 100%; height: auto; overflow: visible; user-select:
     if (!d) return;
     ev.preventDefault();
     unlock();
-    const snap = Math.round(rotation / 30) * 30 + d * 30;
+    const snap = Math.round(target / 30) * 30 + d * 30;
     animateTo(snap);
     setKey(snap / 30, true);
   });
