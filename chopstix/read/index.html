@@ -105,6 +105,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 .songmode #clefs, .songmode #ranges { display: none; }
 .songnav { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
 .songnav[hidden], .pick[hidden], .sound[hidden] { display: none; }
+#auto[aria-pressed="true"] { background: var(--ink-strong); color: #fff; border-color: var(--ink-strong); }
 .ink { fill: var(--staff); }
 .stem { fill: var(--staff); transition: fill .2s; }
 .bar { stroke: var(--staff); stroke-width: 3; }
@@ -164,7 +165,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 
   <div class="status">
     <span class="heard" id="heard" role="status" aria-live="polite"></span>
-    <span class="songnav" id="songNav" hidden><span id="where"></span><button id="again" class="sound">Again</button><button id="next" class="sound">Next</button></span>
+    <span class="songnav" id="songNav" hidden><span id="where"></span><button id="back" class="sound">Back</button><button id="again" class="sound">Again</button><button id="next" class="sound">Next</button><button id="auto" class="sound" aria-pressed="true" title="When a part is finished, go on to the next one">Auto next</button></span>
     <label class="sens">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>
     <span class="meter" id="meter" aria-hidden="true"><span id="meterFill"></span></span>
     <span class="streak">In a row<b id="streak">0</b></span>
@@ -271,7 +272,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     notesG = el('g', {}, staff);
   }
 
-  let line = [], at = 0, misses = 0, streak = 0, last = null, busy = false;
+  let line = [], at = 0, misses = 0, streak = 0, last = null;
   function pick() {
     let s, tries = 0;
     do {
@@ -339,7 +340,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   // middle C only counts as middle C.
   function judge(midi) {
     const n = line[at];
-    if (!n || busy) return;
+    if (!n) return;
     const ok = midi === n.midi;
     lightKey(midi, ok);
     if (ok) {
@@ -347,12 +348,9 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       heardEl.innerHTML = `<b class="yes">${n.label || (n.s === 0 ? 'Middle C' : LETTERS[mod7(n.s)])}</b>, that's right`;
       n.g.classList.remove('miss', 'now');
       n.g.classList.add('done');
-      busy = true;
-      setTimeout(() => {
-        busy = false;
-        at++;
-        if (at >= line.length) { if (song) lineDone(); else newLine(); } else showCurrent();
-      }, 650);
+      // Move on right away, so quick notes (eighths, repeated notes) are never ignored.
+      at++;
+      if (at >= line.length) { if (song) lineDone(); else setTimeout(newLine, 450); } else showCurrent();
     } else {
       streak = 0;
       misses++;
@@ -482,7 +480,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     line = [];
     events.forEach((e, i) => {
       const { x: nx, w } = xs[i];
-      const g = el('g', { class: 'note song' }, notesG);
+      // a tied note belongs to the note it's tied from, so it lights up (and greys out) with it
+      const g = e.tiedFrom ? events[i - 1].g : el('g', { class: 'note song' }, notesG);
       const playable = !e.rest && !e.tiedFrom;
       if (playable) el('rect', { class: 'spot', x: nx - SP * .45, y: vTop + 10, width: HEAD + SP * .9, height: vBottom - vTop - 20, rx: 16 }, g);
       if (e.rest) {
@@ -545,13 +544,27 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   function lineDone() {
     const p = parts[partIdx];
     if (songLine < p.to) {
-      heardEl.innerHTML += '. On to the next line';
-      setTimeout(() => { songLine++; drawSong(); }, 900);
+      // straight on to the next line, so a quick first note isn't missed
+      const msg = heardEl.innerHTML;
+      songLine++; drawSong();
+      heardEl.innerHTML = msg + '. Next line';
+    } else if (autoNext) {
+      startPart(neighborPart(1));
+      heardEl.innerHTML = `<b class="yes">Well done!</b> On to line ${songLine + 1}`;
     } else {
       heardEl.innerHTML = '<b class="yes">Well done!</b> Tap Again, or Next for the next part';
       line.forEach((n) => n.g.classList.add('done'));
     }
   }
+  // The part before or after this one, of the same kind: line to line, section to section.
+  function neighborPart(dir) {
+    const nLines = song.parsed.length, nSec = song.sections.length;
+    if (partIdx < nLines) return (partIdx + dir + nLines) % nLines;
+    if (partIdx < nLines + nSec) return nLines + (partIdx - nLines + dir + nSec) % nSec;
+    return partIdx; // whole song: start it over
+  }
+  let autoNext = true;
+  try { autoNext = localStorage.getItem('read-auto') !== '0'; } catch { /* private mode */ }
   function startPart(i) {
     stopPlaying();
     partIdx = (i + parts.length) % parts.length;
@@ -709,7 +722,19 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   document.getElementById('again').addEventListener('click', () => startPart(partIdx));
   document.getElementById('next').addEventListener('click', () => {
     const p = parts[partIdx];
-    if (songLine < p.to && at < line.length) { songLine++; heardEl.textContent = ''; drawSong(); } else startPart(partIdx + 1);
+    if (songLine < p.to) { stopPlaying(); songLine++; heardEl.textContent = ''; drawSong(); } else startPart(neighborPart(1));
+  });
+  document.getElementById('back').addEventListener('click', () => {
+    const p = parts[partIdx];
+    if (songLine > p.from) { stopPlaying(); songLine--; heardEl.textContent = ''; drawSong(); } else startPart(neighborPart(-1));
+  });
+  const autoBtn = document.getElementById('auto');
+  const showAuto = () => autoBtn.setAttribute('aria-pressed', String(autoNext));
+  showAuto();
+  autoBtn.addEventListener('click', () => {
+    autoNext = !autoNext;
+    showAuto();
+    try { localStorage.setItem('read-auto', autoNext ? '1' : '0'); } catch { /* private mode */ }
   });
   document.getElementById('hear').addEventListener('click', hearIt);
   let resizeTimer = null;
@@ -1007,11 +1032,29 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     const now = Math.sqrt(e / 512);
     const before = mic.hist[0];
     mic.hist.push(now); mic.hist.shift();
-    if (now > before * sens.ratio && now > sens.floor && mic.window < 20) { mic.window = 24; mic.candF = null; mic.stable = 0; }
+    // Also look for a strike inside the newest ~25 ms in 5 ms steps: playing quickly, or the
+    // same key twice, the old note is still ringing, so the jump only shows up close in.
+    let strike = now > before * sens.ratio;
+    if (!strike) {
+      const B = 256, n = mic.buf.length;
+      let prev = -1;
+      for (let s = n - 5 * B; s < n; s += B) {
+        let be = 0;
+        for (let i = s; i < s + B; i++) be += mic.buf[i] * mic.buf[i];
+        be = Math.sqrt(be / B);
+        if (prev > 0 && be > prev * sens.ratio && be > sens.floor) { strike = true; break; }
+        prev = be;
+      }
+    }
+    if (strike && now > sens.floor && mic.window < 20) { mic.window = 24; mic.candF = null; mic.stable = 0; }
     if (mic.window > 0) mic.window--;
     if (performance.now() < busyUntil) return; // don't "hear" our own speaker
     // The pitch analysis is the expensive part, so only run it just after a key strike.
-    const { freq, clarity } = mic.window > 0 ? detectPitch(mic.buf, mic.sr, true) : { freq: -1, clarity: 0 };
+    // Look at only the newest slice that still fits the lowest note in play: a shorter slice
+    // holds less of the previous note, so quick notes come through cleanly (and it's faster).
+    const need = 2 * Math.ceil(mic.sr / pitchFloor) + 64;
+    const slice = need <= 2048 ? mic.buf.subarray(mic.buf.length - 2048) : mic.buf;
+    const { freq, clarity } = mic.window > 0 ? detectPitch(slice, mic.sr, true) : { freq: -1, clarity: 0 };
     if (mic.window > 0 && freq > 0 && rms > sens.floor && clarity > sens.clarity) {
       // A piano note holds a rock-steady pitch; voices slide and wobble. Require a few
       // readings in a row that stay within a fraction of a semitone.
