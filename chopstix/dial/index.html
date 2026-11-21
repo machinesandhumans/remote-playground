@@ -176,14 +176,14 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 
   // ---------- Keyboard: B3 … C5, with half-hidden A♯ and C♯ at the edges ----------
   const keysSvg = document.getElementById('keys');
-  const PX = 20, PY = 14, W = 80, H = 300, BW = 48, BH = 182;
-  const whites = [59, 60, 62, 64, 65, 67, 69, 71, 72]; // B3 C D E F G A B C5
+  const PX = 20, PY = 14, W = 720 / 7, H = 300, BW = 60, BH = 182;
+  const whites = [60, 62, 64, 65, 67, 69, 71]; // one octave, C4..B4 (the mic folds any octave onto it)
   const keyEls = []; // {midi, g}
   // material panel with a seam around the keybed
   el('rect', { x: 0, y: 0, width: 760, height: 330, rx: 16, fill: '#fbfbfa', stroke: '#dcdcd8' }, keysSvg);
-  el('rect', { x: PX - 4, y: PY - 4, width: W * 9 + 8, height: H + 8, rx: 6, fill: '#ececea', stroke: '#d3d3cf' }, keysSvg);
+  el('rect', { x: PX - 4, y: PY - 4, width: W * 7 + 8, height: H + 8, rx: 6, fill: '#ececea', stroke: '#d3d3cf' }, keysSvg);
   const clip = el('clipPath', { id: 'bed' }, el('defs', {}, keysSvg));
-  el('rect', { x: PX, y: PY, width: W * 9, height: H, rx: 3 }, clip);
+  el('rect', { x: PX, y: PY, width: W * 7, height: H, rx: 3 }, clip);
   const bed = el('g', { 'clip-path': 'url(#bed)' }, keysSvg);
   const defs = keysSvg.querySelector('defs');
   const wg = el('linearGradient', { id: 'whiteKey', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
@@ -208,14 +208,12 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     label(g, x + W / 2, PY + H - 42, NAMES[m % 12], false);
     keyEls.push({ midi: m, g });
   });
-  // black keys sit on the boundary after these white keys (index into whites); -1 / 9 are the edge halves
-  const blacks = [[58, 0], [61, 2], [63, 3], [66, 5], [68, 6], [70, 7], [73, 9]];
+  // black keys sit on the boundary after these white keys (index into whites)
+  const blacks = [[61, 1], [63, 2], [66, 4], [68, 5], [70, 6]];
   blacks.forEach(([m, boundary]) => {
     const g = el('g', { class: 'key', 'data-midi': m }, bed);
-    // The two edge keys peek in from outside the keybed; nudge them in so their labels fit.
-    const nudge = boundary === 0 ? 12 : boundary === 9 ? -12 : 0;
-    const cx = PX + boundary * W + nudge;
-    const lx = boundary === 0 ? PX + 19 : boundary === 9 ? PX + 9 * W - 19 : cx;
+    const cx = PX + boundary * W;
+    const lx = cx;
     el('rect', { x: cx - BW / 2 + 3, y: PY - 2, width: BW, height: BH + 4, rx: 5, fill: '#000', opacity: .12 }, g);
     el('rect', { x: cx - BW / 2, y: PY - 2, width: BW, height: BH, rx: 5, fill: 'url(#blackKey)', stroke: '#141416' }, g);
     el('rect', { class: 'hitfill', x: cx - BW / 2, y: PY - 2, width: BW, height: BH, rx: 5, fill: 'transparent' }, g);
@@ -481,7 +479,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
     rms = Math.sqrt(rms / n);
     if (rms < 0.0006) return { freq: -1, rms, clarity: 0 };
-    const minLag = Math.floor(sr / 2100), maxLag = Math.min(Math.floor(sr / 70), n >> 1), size = n - maxLag;
+    const minLag = Math.floor(sr / 2100), maxLag = Math.min(Math.floor(sr / 62), n >> 1), size = n - maxLag;
     const nsdf = new Float32Array(maxLag + 1);
     let best = 0;
     for (let lag = minLag; lag <= maxLag; lag++) {
