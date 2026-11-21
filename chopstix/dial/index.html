@@ -52,6 +52,20 @@ body {
   background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 6px 12px; cursor: pointer;
   box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05);
 }
+.mic { display: inline-flex; align-items: center; gap: 8px; margin-right: 8px; }
+.mic .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--seam-dark); transition: background .2s, box-shadow .2s, transform .08s; }
+.mic[aria-pressed="true"] { color: var(--ink-strong); }
+.mic[aria-pressed="true"] .dot { background: var(--red); box-shadow: 0 0 8px var(--red); }
+.heard { margin-right: 14px; font-size: 16px; color: var(--ink-strong); letter-spacing: .02em; white-space: nowrap; }
+.heard b { font-weight: 700; }
+.heard .yes { color: var(--red); }
+.heard .no { color: var(--ink); }
+/* a key that was just heard: in the scale = solid red badge, not in the scale = struck-out grey badge */
+.hit-in .ring { fill: var(--red) !important; stroke: var(--red) !important; }
+.hit-in .lbl { fill: #fff !important; }
+.hit-in .glow { opacity: 1; }
+.hit-out .ring { fill: #cfcfca !important; stroke: #ffffff !important; stroke-width: 3px; }
+.hit-out .lbl { fill: #2b2b2d !important; text-decoration: line-through; }
 .sound-msg { flex: 1; margin: 0 16px; font-size: 14px; color: var(--red); text-align: right; }
 .sound[aria-pressed="true"] { color: var(--ink-strong); }
 .sound:focus-visible { outline: 2px solid var(--red-soft); outline-offset: 4px; }
@@ -79,6 +93,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   <div class="topline">
     <span class="title">Major scale</span>
     <span id="soundMsg" class="sound-msg" role="status" hidden></span>
+    <span class="heard" id="heard" role="status" aria-live="polite"></span>
+    <button id="mic" class="sound mic" aria-pressed="false"><span class="dot"></span>Listen</button>
     <button id="sound" class="sound" aria-pressed="true">Sound on</button>
   </div>
 
@@ -228,7 +244,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     center.textContent = NAMES[k];
     center.setAttribute('font-size', NAMES[k].length > 1 ? 56 : 64);
     nameEls.forEach((t, i) => t.classList.toggle('active', i === k));
-    const pcs = new Set();
+    const pcs = scalePcs = new Set();
     let p = k; pcs.add(p);
     STEPS.forEach((s) => { p = (p + s) % 12; pcs.add(p); });
     keyEls.forEach(({ midi, g }) => g.classList.toggle('on', pcs.has(midi % 12)));
@@ -300,7 +316,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   });
 
   // ---------- Sound ----------
-  let ctx = null, soundOn = true, cancelScale = [];
+  let ctx = null, soundOn = true, cancelScale = [], scalePcs = new Set(), busyUntil = 0;
   const soundBtn = document.getElementById('sound');
   soundBtn.addEventListener('click', () => {
     soundOn = !soundOn;
@@ -355,6 +371,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   }
   function tone(midi, when = 0, dur = 1.2, vol = .22) {
     if (!soundOn) return;
+    busyUntil = Math.max(busyUntil, performance.now() + (when + dur * .8) * 1000);
     if (useHtmlAudio) {
       const a = new Audio(noteWav(midi));
       a.setAttribute('playsinline', '');
@@ -437,6 +454,108 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   });
   // Warm up the iPad note cache so the first tap isn't delayed.
   if (useHtmlAudio) setTimeout(() => keyEls.forEach(({ midi }) => noteWav(midi)), 300);
+
+  // ---------- Listening to a real piano ----------
+  // Autocorrelation pitch detection: reliable for one note at a time.
+  function detectPitch(buf, sr) {
+    const n = buf.length;
+    let rms = 0;
+    for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
+    rms = Math.sqrt(rms / n);
+    if (rms < 0.005) return { freq: -1, rms, clarity: 0 };
+    const minLag = Math.floor(sr / 2100), maxLag = Math.min(Math.floor(sr / 55), n >> 1), size = n - maxLag;
+    const nsdf = new Float32Array(maxLag + 1);
+    let best = 0;
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let ac = 0, m = 0;
+      for (let i = 0; i < size; i++) { const a = buf[i], b = buf[i + lag]; ac += a * b; m += a * a + b * b; }
+      nsdf[lag] = m > 0 ? 2 * ac / m : 0;
+      if (nsdf[lag] > best) best = nsdf[lag];
+    }
+    if (best < 0.5) return { freq: -1, rms, clarity: best };
+    let lag = -1;
+    for (let i = minLag + 1; i < maxLag; i++) {
+      if (nsdf[i] >= best * 0.9 && nsdf[i] >= nsdf[i - 1] && nsdf[i] >= nsdf[i + 1]) { lag = i; break; }
+    }
+    if (lag < 0) return { freq: -1, rms, clarity: best };
+    const a = nsdf[lag - 1], b = nsdf[lag], c = nsdf[lag + 1];
+    const shift = (a - c) / (2 * (a - 2 * b + c) || 1);
+    return { freq: sr / (lag + shift), rms, clarity: b };
+  }
+
+  const micBtn = document.getElementById('mic');
+  const heardEl = document.getElementById('heard');
+  const micDot = micBtn.querySelector('.dot');
+  let mic = null;
+  micBtn.addEventListener('click', async () => {
+    if (mic) { stopMic(); return; }
+    unlock();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showMicError(); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      const c = unlock() || new (window.AudioContext || window.webkitAudioContext)();
+      if (c.state !== 'running') await c.resume().catch(() => {});
+      const src = c.createMediaStreamSource(stream);
+      const an = c.createAnalyser();
+      an.fftSize = 2048;
+      src.connect(an);
+      mic = { stream, an, buf: new Float32Array(2048), sr: c.sampleRate, cand: null, stable: 0, last: null, armed: true, avg: 0 };
+      mic.timer = setInterval(listen, 35);
+      micBtn.setAttribute('aria-pressed', 'true');
+      micBtn.lastChild.textContent = 'Listening';
+      heardEl.textContent = 'Play a note on your piano';
+    } catch (e) {
+      showMicError();
+    }
+  });
+  function showMicError() {
+    heardEl.textContent = 'Microphone not allowed. Allow it for this site and try again.';
+  }
+  function stopMic() {
+    clearInterval(mic.timer);
+    mic.stream.getTracks().forEach((t) => t.stop());
+    mic = null;
+    micBtn.setAttribute('aria-pressed', 'false');
+    micBtn.lastChild.textContent = 'Listen';
+    micDot.style.transform = '';
+    heardEl.textContent = '';
+  }
+  function listen() {
+    mic.an.getFloatTimeDomainData(mic.buf);
+    const { freq, rms, clarity } = detectPitch(mic.buf, mic.sr);
+    micDot.style.transform = `scale(${1 + Math.min(1.2, rms * 12)})`;
+    // A jump in loudness means a new key was struck; silence re-arms too.
+    if (rms > mic.avg * 1.8 + 0.004 || rms < 0.006) mic.armed = true;
+    if (rms < 0.006) mic.last = null;
+    mic.avg = mic.avg * 0.8 + rms * 0.2;
+    if (performance.now() < busyUntil) return; // don't "hear" our own speaker
+    if (freq > 0 && rms > 0.01 && clarity > 0.8) {
+      const m = Math.round(69 + 12 * Math.log2(freq / 440));
+      if (m === mic.cand) mic.stable++; else { mic.cand = m; mic.stable = 1; }
+      if (mic.stable >= 3 && (mic.armed || m !== mic.last)) {
+        mic.last = m;
+        mic.armed = false;
+        heard(m);
+      }
+    } else { mic.cand = null; mic.stable = 0; }
+  }
+  let hitTimer = null;
+  function heard(midi) {
+    const pc = ((midi % 12) + 12) % 12;
+    // Light the matching key on screen (prefer the middle octave when a name appears twice).
+    const matches = keyEls.filter((k) => k.midi % 12 === pc);
+    const k = matches.find((x) => x.midi >= 60 && x.midi <= 71) || matches[0];
+    const inScale = scalePcs.has(pc);
+    keyEls.forEach((x) => x.g.classList.remove('hit-in', 'hit-out'));
+    clearTimeout(hitTimer);
+    if (k) {
+      k.g.classList.add(inScale ? 'hit-in' : 'hit-out');
+      hitTimer = setTimeout(() => k.g.classList.remove('hit-in', 'hit-out'), 1400);
+    }
+    heardEl.innerHTML = inScale
+      ? `<b class="yes">${NAMES[pc]}</b> is in ${NAMES[key]} major`
+      : `<b class="no">${NAMES[pc]}</b> is not in ${NAMES[key]} major`;
+  }
 
   setKey(0, false);
   render();
