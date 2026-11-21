@@ -65,5 +65,13 @@ notes at a time; play the highlighted one on the real piano (tap **Listen**) or 
 - Right notes turn green and show their letter; wrong ones shake red. After two misses, or on **Help**, the letter
   appears under the note and the matching key glows. **Letters** turns the key labels on and off.
 
+**Songs.** The **Song** list starts with **Random** (the random notes above), then real songs A to Z; the first is
+*O Holy Night* (Adolphe Adam), transcribed from a lead sheet in C, 6/8. A song is drawn in real note values
+(quarter, eighth and dotted notes, rests, ties, time signature) with the lyrics under it, one line of the
+printed page at a time. **Part** picks one line, a lettered section (several lines, played one after another)
+or the whole song. **Hear it** plays the line at the song's tempo, **Again** restarts the part and **Next** moves on.
+Tied notes are played once. Songs live in the `SONGS` list in `read/index.html`, written as `pitch beats lyric`
+tokens (beats in eighth notes, `~` tie, `^` fermata, `r` rest).
+
 The staff stretches to fill the space, so one clef and 2 octaves gives the biggest notes; all 88 keys on both staves is the smallest.
 The clef and notehead shapes come from the Bravura music font (SIL Open Font License).

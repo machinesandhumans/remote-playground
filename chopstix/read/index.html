@@ -99,6 +99,22 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 .note.shake { animation: shake .35s; }
 @keyframes shake { 20%, 60% { transform: translateX(-9px); } 40%, 80% { transform: translateX(9px); } }
 
+.pick { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+.pick select { font: inherit; font-size: 14px; letter-spacing: 0; text-transform: none; color: var(--ink-strong); background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 5px 10px; max-width: 220px; }
+.pick select:focus-visible { outline: 2px solid var(--green-soft); outline-offset: 2px; }
+.songmode #clefs, .songmode #ranges { display: none; }
+.songnav { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
+.songnav[hidden], .pick[hidden], .sound[hidden] { display: none; }
+.ink { fill: var(--staff); }
+.stem { fill: var(--staff); transition: fill .2s; }
+.bar { stroke: var(--staff); stroke-width: 3; }
+.tie { fill: var(--staff); }
+.lyric { font-family: Georgia, "Times New Roman", serif; font-size: 34px; text-anchor: middle; fill: var(--ink-strong); }
+.note.song.later { opacity: .55; }
+.note.done .stem, .note.done .tie, .note.done .head { fill: var(--green); }
+.note.done .lyric { fill: var(--green); }
+.note .name.small { font-size: 30px; }
+.note.playing .head, .note.playing .stem { fill: var(--green); }
 .key { cursor: pointer; }
 .lbl { font-family: var(--font); font-weight: 600; text-anchor: middle; dominant-baseline: central; }
 .no-letters .key .ring, .no-letters .key .lbl { opacity: 0; }
@@ -122,6 +138,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 <main class="stage">
   <div class="topline">
     <span class="title">Read the note</span>
+    <label class="pick">Song <select id="songSel" aria-label="Song list"></select></label>
+    <label class="pick" id="partPick" hidden>Part <select id="partSel" aria-label="Part of the song"></select></label>
     <span class="seg" id="clefs" role="group" aria-label="Clef">
       <button data-v="treble">Treble</button>
       <button data-v="bass">Bass</button>
@@ -132,6 +150,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       <button data-v="4">4 octaves</button>
       <button data-v="all">All 88 keys</button>
     </span>
+    <button id="hear" class="sound" hidden>Hear it</button>
     <button id="help" class="sound">Help</button>
     <button id="letters" class="sound" aria-pressed="true">Letters</button>
     <button id="mic" class="sound mic" aria-pressed="false"><span class="dot"></span>Listen</button>
@@ -145,6 +164,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 
   <div class="status">
     <span class="heard" id="heard" role="status" aria-live="polite"></span>
+    <span class="songnav" id="songNav" hidden><span id="where"></span><button id="again" class="sound">Again</button><button id="next" class="sound">Next</button></span>
     <label class="sens">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>
     <span class="meter" id="meter" aria-hidden="true"><span id="meterFill"></span></span>
     <span class="streak">In a row<b id="streak">0</b></span>
@@ -324,14 +344,14 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     lightKey(midi, ok);
     if (ok) {
       streak++;
-      heardEl.innerHTML = `<b class="yes">${n.s === 0 ? 'Middle C' : LETTERS[mod7(n.s)]}</b>, that's right`;
+      heardEl.innerHTML = `<b class="yes">${n.label || (n.s === 0 ? 'Middle C' : LETTERS[mod7(n.s)])}</b>, that's right`;
       n.g.classList.remove('miss', 'now');
       n.g.classList.add('done');
       busy = true;
       setTimeout(() => {
         busy = false;
         at++;
-        if (at >= line.length) newLine(); else showCurrent();
+        if (at >= line.length) { if (song) lineDone(); else newLine(); } else showCurrent();
       }, 650);
     } else {
       streak = 0;
@@ -349,6 +369,215 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       if (misses >= 2) showHelp();
     }
     document.getElementById('streak').textContent = streak;
+  }
+
+  // ---------- Songs ----------
+  // Each song is written out line by line, like the printed page. A note is "pitch beats lyric":
+  // beats are in eighth notes (1 = eighth, 2 = quarter, 3 = dotted quarter, 6 = dotted half),
+  // "~" ties it to the next note, "^" adds a fermata, "r" is a rest, "|" is a bar line.
+  // Songs are kept in A to Z order in the Song list (after Random).
+  const SONGS = [
+    {
+      id: 'o-holy-night', title: 'O Holy Night', by: 'Adolphe Adam', time: [6, 8], eighth: 0.3, // quarter = 100
+      sections: [['A', 0, 1], ['B', 2, 3], ['C', 4, 9], ['D', 10, 11]],
+      lines: [
+        'E4 3 O | E4 2 ho- | E4 1 ly | G4 3~ night! | G4 2 | G4 1 The | A4 2 stars | A4 1 are | F4 2 bright- | A4 1 ly | C5 6 shi-',
+        'G4 2 ning! | G4 1 It | E4 2 is | D4 1 the | C4 3 night, | r 1 | E4 1 of | F4 1 our | G4 3 dear | F4 2 sav- | D4 1 ior\'s | C4 6 birth. | r 6',
+        'E4 3 Long | E4 2 lay | E4 1 the | G4 3~ world | G4 2 | G4 1 in | A4 2 sin | A4 1 and | F4 2 er- | A4 1 ror | C5 6 pin-',
+        'G4 2 ing, | G4 1 \'till | F#4 2 he | E4 1 ap- | B4 3 pears | r 1 | G4 1 and | A4 1 the | B4 3 soul | C5 2 felt | B4 1 its | E4 6 worth.',
+        'r 3 | r 2 | G4 1 A | G4 3 thrill | A4 3 of | D4 3~ hope | D4 2 | G4 1 the',
+        'A4 2 wea- | G4 1 ry | C5 2 world | E4 1 re- | A4 3 joi- | G4 2 ces! | G4 1 For | G4 3 yon- | A4 3 der | D4 3~ breaks | D4 2 | G4 1 a',
+        'A4 2 new | G4 1 and | C5 2 glo- | E4 1 rious | G4 6 morn. | C5 6~ Fall | C5 3 | B4 2 on | A4 1 your',
+        'B4 6 knees; | r 3 | r 2 | B4 1 O | D5 6~ hear | D5 2 | F4 1 the | F4 2 an- | F4 1 gel',
+        'C5 6 voi- | C5 3~ ces! | C5 2 | C5 1 O | E5 6 night | D5 3~ | D5 2 | G4 1 di-',
+        'C5 6 vine, | C5 3 O | B4 2 | A4 1 | G4 6~ night | G4 2 | G4 1 when | A4 2 Christ | G4 1 was | G4 6 born,',
+        'r 3 | C5 3 O | D5 6~ night, | D5 3 | G4 3 di-',
+        'G5 6 vine! | F5 3^ O | E5 2 | D5 1 | C5 6~ night, | C5 2 | B4 1 O | C5 2 night | D5 1 di- | C5 6 vine!',
+      ],
+    },
+  ];
+  // Turn a line's text into measures of events.
+  function parseLine(text, time) {
+    const per = time[0] * 8 / time[1]; // eighths per measure
+    const events = [];
+    let filled = 0;
+    text.split('|').map((t) => t.trim()).filter(Boolean).forEach((tok) => {
+      const [p, d, ...rest] = tok.split(' ');
+      const beats = parseInt(d, 10);
+      const ev = { rest: p === 'r', beats, tie: d.includes('~'), fermata: d.includes('^'), lyric: rest.join(' ') };
+      if (!ev.rest) {
+        const m = /^([A-G])(#?)(\d)$/.exec(p);
+        ev.s = 7 * (+m[3] - 4) + LETTERS.indexOf(m[1]);
+        ev.sharp = !!m[2];
+        ev.midi = stepMidi(ev.s) + (ev.sharp ? 1 : 0);
+      }
+      ev.bar = Math.floor(filled / per);
+      filled += beats;
+      ev.endsBar = filled % per === 0;
+      events.push(ev);
+    });
+    events.forEach((ev, i) => { ev.tiedFrom = i > 0 && events[i - 1].tie && !ev.rest; });
+    return events;
+  }
+  SONGS.forEach((song) => { song.parsed = song.lines.map((l) => parseLine(l, song.time)); });
+
+  // The parts of a song you can practice: each line, each lettered section, or the whole thing.
+  function partsOf(song) {
+    const first = (i) => song.parsed[i].filter((e) => e.lyric).slice(0, 5).map((e) => e.lyric).join(' ').replace(/- /g, '');
+    const parts = song.parsed.map((_, i) => ({ label: `Line ${i + 1}: ${first(i)}…`, from: i, to: i }));
+    song.sections.forEach(([name, a, b]) => parts.push({ label: `Section ${name} (lines ${a + 1}–${b + 1})`, from: a, to: b }));
+    parts.push({ label: `Whole song (${song.lines.length} lines)`, from: 0, to: song.lines.length - 1 });
+    return parts;
+  }
+
+  let song = null, parts = [], partIdx = 0, songLine = 0, playTimers = [];
+  const G = {
+    black: 'M97 -125C186 -125 295 -43 295 42C295 93 255 125 198 125C88 125 0 44 0 -42C0 -94 43 -125 97 -125Z', half: 'M97 -125C262 -125 295 9 295 42C295 93 254 125 196 125C47 125 0 10 0 -42C0 -95 42 -125 97 -125ZM75 -87C54 -87 42 -76 35 -64C32 -58 29 -51 29 -44C29 5 174 84 221 84C240 84 251 75 258 63C261 57 264 51 264 44C264 1 123 -87 75 -87Z', up: 'M238 -790C238 -790 264 -695 264 -617C264 -492 212 -374 149 -274C98 -195 56 -109 40 -13C37 3 29 9 19 9C8 9 0 6 0 -6V-245C66 -257 161 -393 197 -478C212 -512 221 -569 221 -628C221 -673 214 -720 197 -765C195 -771 194 -776 194 -780C194 -796 204 -805 210 -809C216 -813 233 -807 238 -790Z', down: 'M240 760C254 718 261 668 261 623C261 564 236 480 221 446C184 362 134 281 0 236V1C0 -9 8 -14 16 -14C25 -14 38 -8 40 8C57 103 131 190 182 269C245 368 306 487 306 612C306 690 286 761 278 793C275 804 269 808 262 808C247 808 230 789 240 760Z',
+    rq: 'M78 -38C94 -58 108 -77 121 -98C123 -102 127 -110 127 -112C127 -113 127 -115 126 -116C124 -120 120 -121 115 -121C111 -121 103 -119 99 -118C98 -118 96 -118 95 -118L87 -115C35 -115 1 -162 1 -211C1 -261 44 -310 117 -366C125 -372 135 -375 143 -375C150 -375 157 -373 158 -369C159 -366 160 -364 160 -362C160 -353 152 -345 144 -338C131 -338 120 -311 118 -302C115 -294 114 -285 114 -276C114 -235 135 -203 177 -203C206 -203 239 -214 256 -220L257 -221C261 -222 263 -222 265 -222C268 -222 270 -221 270 -218C270 -206 244 -173 233 -161C195 -115 164 -78 164 -22C164 -21 164 -20 164 -19L165 -12C165 -11 165 -10 165 -9C169 49 205 97 231 138C234 143 235 148 235 153C235 163 231 172 231 172C231 172 83 348 66 365C61 370 54 373 48 373C38 373 28 366 28 352C28 347 29 342 32 336C36 325 93 274 93 202C93 165 78 122 33 75C23 65 19 54 19 46C19 32 29 22 29 22Z', r8: 'M134 107C134 144 104 174 67 174C30 174 0 144 0 107C0 86 12 68 27 56C43 45 62 39 81 39C95 39 109 42 120 46C134 50 143 54 156 61C158 62 160 62 161 62C165 62 166 58 166 53C166 50 166 46 165 42C162 27 90 -172 72 -238C72 -250 95 -251 101 -251C112 -251 126 -249 136 -241C139 -239 237 112 237 112C241 130 246 146 247 151C247 161 237 166 235 167C233 167 230 167 224 163C217 157 167 97 134 97Z', rw: 'M282 -109V-17C282 -2 270 9 256 9H26C11 9 0 -2 0 -17V-109C0 -123 11 -135 26 -135H256C270 -135 282 -123 282 -109Z', dot: 'M100 0C100 28 78 50 50 50C22 50 0 28 0 0C0 -28 22 -50 50 -50C78 -50 100 -28 100 0Z',
+    sharp: 'M237 118C244 121 249 129 249 135V206C249 211 246 214 242 214C240 214 239 214 237 213C237 213 217 205 212 204C205 204 198 209 198 217V339C198 345 192 350 184 350C174 350 168 345 168 339V209C167 199 164 186 155 180C143 173 109 159 92 155C83 155 80 167 80 175V295C80 301 73 306 66 306C56 306 50 301 50 295V160C50 146 44 136 38 133C32 130 12 122 12 122C5 120 0 112 0 106V35C0 29 3 26 9 26L11 27C12 27 27 33 35 37L36 38C44 38 50 28 50 20V-79C50 -90 45 -99 39 -102C33 -104 12 -113 12 -113C5 -115 0 -123 0 -129V-200C0 -206 3 -209 9 -209L11 -208C12 -208 26 -202 35 -199C36 -198 37 -198 38 -198C45 -198 50 -209 50 -214V-337C50 -343 56 -348 63 -348C73 -348 80 -343 80 -337V-198C80 -185 85 -178 90 -176L151 -151C151 -151 152 -151 152 -151L154 -150C163 -150 168 -162 168 -168V-293C168 -299 174 -304 181 -304C192 -304 198 -299 198 -293V-151C198 -143 202 -131 209 -128C216 -125 237 -117 237 -117C244 -114 249 -106 249 -100V-29C249 -24 246 -21 242 -21C240 -21 239 -21 237 -22L211 -32C205 -32 198 -26 198 -14V79C198 86 203 105 211 108ZM168 -45C162 -65 115 -85 92 -85C86 -85 81 -83 80 -80C78 -76 77 -54 77 -30C77 1 78 36 80 44C82 61 128 82 153 82C160 82 166 80 168 76C170 71 172 46 172 19C172 -8 170 -36 168 -45Z', t6: 'M305 83C347 83 385 116 385 159C385 163 385 166 384 170C374 234 296 251 242 251C166 250 95 213 59 145C37 103 20 50 20 3V-1C21 -47 29 -99 51 -139C92 -213 141 -249 225 -249C270 -249 320 -242 356 -213C391 -185 414 -140 414 -95C414 -17 340 50 263 50C231 50 198 38 172 15C170 13 168 13 166 13C160 13 157 21 157 37C160 222 219 227 240 227C260 227 273 222 273 212C273 198 254 186 248 174C243 165 241 155 241 145C241 130 246 115 256 104C263 91 292 83 305 83ZM222 2C254 2 281 -48 281 -110C281 -172 254 -222 222 -222C190 -222 164 -172 164 -110C164 -48 190 2 222 2Z', t8: 'M334 36C370 59 394 92 394 142C394 244 247 259 220 259C104 259 25 206 25 122C25 53 64 16 112 -11C60 -36 20 -69 20 -132C20 -219 110 -259 209 -259C309 -259 416 -216 416 -81C416 -21 381 12 334 36ZM282 59C202 87 117 104 117 167C117 209 174 230 218 230C250 230 335 214 335 144C335 104 315 78 282 59ZM205 -226C138 -226 77 -192 77 -127C77 -87 112 -50 156 -33C229 -65 303 -86 303 -152C303 -192 272 -226 205 -226Z', ferm: 'M302 221C515 221 558 63 568 25C569 22 569 19 570 18C577 4 581 -3 591 -3C600 -3 605 1 605 11C605 14 605 17 604 21C542 327 333 329 304 329C272 329 65 327 4 21C3 17 3 13 3 10C3 0 8 -3 16 -3C25 -3 30 4 36 18C37 19 38 23 39 27C51 68 96 221 302 221ZM358 52C358 81 333 106 303 106C274 106 249 81 249 52C249 22 274 -3 303 -3C333 -3 358 22 358 52Z',
+  };
+  const glyph = (g, d, x, y, cls) => el('path', { d, class: cls || 'ink', transform: `translate(${x} ${y}) scale(${FS} ${-FS})` }, g);
+  const HEAD = 295 * FS, STEM = .12 * SP, STEM_LEN = 3.5 * SP;
+  const timeDigit = (n) => (n === 6 ? G.t6 : G.t8);
+
+  // Draw the current line of the song on the big staff, in real note values.
+  function drawSong() {
+    staff.textContent = '';
+    const events = song.parsed[songLine];
+    const top = 0, bottom = 4 * SP, mid = 2 * SP;
+    // vertical room for every line of the song, so the size never jumps between lines
+    let lowS = 99, highS = -99;
+    song.parsed.flat().forEach((e) => { if (!e.rest) { lowS = Math.min(lowS, e.s); highS = Math.max(highS, e.s); } });
+    const vTop = Math.min(-1.9 * SP, yOf('treble', highS) - SP * .8) - 20;
+    const lyricY = Math.max(bottom + 2.4 * SP, yOf('treble', lowS) + 1.6 * SP);
+    const hintY = lyricY + 1.25 * SP;
+    const vBottom = hintY + .6 * SP;
+    view = { top: vTop, bottom: vBottom };
+
+    // horizontal layout: room for each note grows with its length, and with its lyric
+    const start = 64 + 671 * FS + 28 + 420 * FS + 40;
+    const xs = [];
+    let x = start;
+    events.forEach((e) => {
+      const lyricW = e.lyric ? e.lyric.length * 19 + 26 : 0;
+      const w = Math.max(HEAD + SP * .9 + e.beats * SP * .42 + (e.sharp ? SP : 0), lyricW);
+      xs.push({ x: x + (e.sharp ? SP : 0), w });
+      x += w + (e.endsBar ? SP * .7 : 0);
+    });
+    const box = staff.parentNode.getBoundingClientRect();
+    const aspect = box.width > 0 && box.height > 0 ? box.width / box.height : 2.5;
+    VW = Math.max(x + 40, (vBottom - vTop) * aspect);
+    const stretch = (VW - 50 - start) / (x - start);
+    xs.forEach((p) => { p.x = start + (p.x - start) * stretch; p.w *= stretch; });
+    staff.setAttribute('viewBox', `0 ${vTop} ${VW} ${vBottom - vTop}`);
+    el('rect', { class: 'paper', x: 0, y: vTop, width: VW, height: vBottom - vTop, rx: 14 }, staff);
+    for (let i = 0; i < 5; i++) el('line', { class: 'line', x1: 30, x2: VW - 30, y1: top + i * SP, y2: top + i * SP }, staff);
+    el('line', { class: 'line', x1: 30, x2: 30, y1: top, y2: bottom }, staff);
+    glyph(staff, G_CLEF, 64, yOf('treble', 4), 'clef');
+    const tx = 64 + 671 * FS + 28;
+    glyph(staff, timeDigit(song.time[0]), tx, SP, 'clef');
+    glyph(staff, timeDigit(song.time[1]), tx, 3 * SP, 'clef');
+    notesG = el('g', {}, staff);
+
+    line = [];
+    events.forEach((e, i) => {
+      const { x: nx, w } = xs[i];
+      const g = el('g', { class: 'note song' }, notesG);
+      const playable = !e.rest && !e.tiedFrom;
+      if (playable) el('rect', { class: 'spot', x: nx - SP * .45, y: vTop + 10, width: HEAD + SP * .9, height: vBottom - vTop - 20, rx: 16 }, g);
+      if (e.rest) {
+        if (e.beats === 6) glyph(g, G.rw, nx, yOf('treble', 8), 'head');
+        else glyph(g, e.beats === 1 ? G.r8 : G.rq, nx, mid, 'head');
+        if (e.beats === 3) glyph(g, G.dot, nx + 300 * FS + SP * .25, mid - SP / 2, 'head');
+      } else {
+        const y = yOf('treble', e.s);
+        ledgers(g, 'treble', e.s, nx + HEAD / 2);
+        g.querySelectorAll('.ledger').forEach((l) => { l.setAttribute('x1', nx - SP * .4); l.setAttribute('x2', nx + HEAD + SP * .4); });
+        if (e.sharp) glyph(g, G.sharp, nx - SP * .35 - 249 * FS, y, 'head');
+        const hollow = e.beats >= 4;
+        glyph(g, hollow ? G.half : G.black, nx, y, 'head');
+        const down = e.s >= 6; // on or above the middle line: stem goes down
+        if (down) {
+          el('rect', { class: 'stem', x: nx, y: y + .168 * SP, width: STEM, height: STEM_LEN - .168 * SP }, g);
+          if (e.beats === 1) glyph(g, G.down, nx, y + STEM_LEN, 'head');
+        } else {
+          el('rect', { class: 'stem', x: nx + HEAD - STEM, y: y - STEM_LEN, width: STEM, height: STEM_LEN - .168 * SP }, g);
+          if (e.beats === 1) glyph(g, G.up, nx + HEAD - STEM, y - STEM_LEN, 'head');
+        }
+        if (e.beats === 3 || e.beats === 6) glyph(g, G.dot, nx + HEAD + SP * .3, y - (mod7(e.s - 2) % 2 === 0 ? SP / 2 : 0), 'head');
+        if (e.fermata) glyph(g, G.ferm, nx + HEAD / 2 - 302 * FS, Math.min(top, y) - SP * .9, 'head');
+        e.down = down;
+      }
+      if (e.lyric) { const t = el('text', { class: 'lyric', x: nx + HEAD / 2, y: lyricY }, g); t.textContent = e.lyric; }
+      if (playable) {
+        const t = el('text', { class: 'name', x: nx + HEAD / 2, y: hintY }, g);
+        t.textContent = e.s === 0 && !e.sharp ? 'Middle C' : NAMES[e.midi % 12];
+        if (t.textContent.length > 2) t.classList.add('small');
+        el('rect', { x: nx - SP * .45, y: vTop, width: HEAD + SP * .9, height: vBottom - vTop, fill: 'transparent' }, g);
+        const n = { s: e.s, midi: e.midi, g, label: t.textContent };
+        g.addEventListener('pointerdown', () => tone(n.midi));
+        line.push(n);
+      }
+      e.x = nx; e.g = g;
+      if (e.endsBar) {
+        const bx = nx + w + SP * .35 * stretch;
+        const last = i === events.length - 1;
+        el('line', { class: 'bar', x1: last ? VW - 30 : bx, x2: last ? VW - 30 : bx, y1: top, y2: bottom }, staff);
+      }
+    });
+    // ties: a curve from a note to the next one, on the side away from the stems
+    events.forEach((e, i) => {
+      if (!e.tie || !events[i + 1]) return;
+      const f = events[i + 1], y = yOf('treble', e.s), side = e.down ? -1 : 1;
+      const x1 = e.x + HEAD * .75, x2 = f.x + HEAD * .25, y0 = y + side * SP * .55, bend = side * SP * .75;
+      const mx = (x1 + x2) / 2;
+      el('path', { class: 'tie', d: `M ${x1} ${y0} Q ${mx} ${y0 + bend} ${x2} ${y0} Q ${mx} ${y0 + bend - side * SP * .16} ${x1} ${y0} Z` }, e.g);
+    });
+    at = 0;
+    showCurrent();
+    lineLabel();
+  }
+  function lineLabel() {
+    const p = parts[partIdx];
+    const n = p.to - p.from + 1;
+    document.getElementById('where').textContent = n > 1 ? `Line ${songLine + 1} (${songLine - p.from + 1} of ${n})` : `Line ${songLine + 1}`;
+  }
+  function lineDone() {
+    const p = parts[partIdx];
+    if (songLine < p.to) {
+      heardEl.innerHTML += '. On to the next line';
+      setTimeout(() => { songLine++; drawSong(); }, 900);
+    } else {
+      heardEl.innerHTML = '<b class="yes">Well done!</b> Tap Again, or Next for the next part';
+      line.forEach((n) => n.g.classList.add('done'));
+    }
+  }
+  function startPart(i) {
+    stopPlaying();
+    partIdx = (i + parts.length) % parts.length;
+    partSel.value = String(partIdx);
+    songLine = parts[partIdx].from;
+    try { localStorage.setItem('read-part-' + song.id, String(partIdx)); } catch { /* private mode */ }
+    heardEl.textContent = '';
+    drawSong();
+  }
+  // "Hear it": play the line at the song's tempo, lighting each note as it sounds.
+  function stopPlaying() { playTimers.forEach(clearTimeout); playTimers = []; notesG && notesG.querySelectorAll('.playing').forEach((g) => g.classList.remove('playing')); }
+  function hearIt() {
+    stopPlaying();
+    const events = song.parsed[songLine];
+    let t = 0;
+    events.forEach((e, i) => {
+      if (!e.rest && !e.tiedFrom) {
+        let len = e.beats;
+        for (let j = i; events[j].tie && events[j + 1]; j++) len += events[j + 1].beats;
+        tone(e.midi, t, Math.max(.4, len * song.eighth * 1.1), .22);
+        const g = e.g;
+        playTimers.push(setTimeout(() => g.classList.add('playing'), t * 1000));
+        playTimers.push(setTimeout(() => g.classList.remove('playing'), (t + len * song.eighth) * 1000 - 40));
+      }
+      t += e.beats * song.eighth;
+    });
   }
 
   // ---------- Keyboard: the same stretch of the piano as the notes ----------
@@ -428,6 +657,19 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   const clefBtns = [...document.querySelectorAll('#clefs button')];
   const rangeBtns = [...document.querySelectorAll('#ranges button')];
   function setup() {
+    document.body.classList.toggle('songmode', !!song);
+    document.getElementById('partPick').hidden = !song;
+    document.getElementById('hear').hidden = !song;
+    document.getElementById('songNav').hidden = !song;
+    if (song) {
+      // a song sets its own staff and keys: treble clef, middle C up two octaves
+      clef = 'treble'; lo = 0; hi = 14;
+      pitchFloor = 440 * Math.pow(2, (stepMidi(lo) - 69) / 12) / 2.1;
+      drawKeys();
+      startPart(partIdx);
+      return;
+    }
+    try { clef = localStorage.getItem('read-clef') || clef; } catch { /* private mode */ }
     [lo, hi] = RANGES[range];
     clefBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === clef)));
     rangeBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === range)));
@@ -443,11 +685,40 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     if (['treble', 'bass', 'both'].includes(c)) clef = c;
     if (r in RANGES) range = r;
   } catch { /* private mode */ }
-  clefBtns.forEach((b) => b.addEventListener('click', () => { clef = b.dataset.v; setup(); }));
+  clefBtns.forEach((b) => b.addEventListener('click', () => { clef = b.dataset.v; try { localStorage.setItem('read-clef', clef); } catch { /* private mode */ } setup(); }));
+  // Song list: Random first, then the songs A to Z.
+  const songSel = document.getElementById('songSel'), partSel = document.getElementById('partSel');
+  songSel.add(new Option('Random', ''));
+  [...SONGS].sort((a, b) => a.title.localeCompare(b.title)).forEach((s) => songSel.add(new Option(s.title, s.id)));
+  function chooseSong(id) {
+    song = SONGS.find((s) => s.id === id) || null;
+    songSel.value = song ? song.id : '';
+    try { localStorage.setItem('read-song', song ? song.id : ''); } catch { /* private mode */ }
+    if (song) {
+      parts = partsOf(song);
+      partSel.textContent = '';
+      parts.forEach((p, i) => partSel.add(new Option(p.label, String(i))));
+      partIdx = 0;
+      try { const v = parseInt(localStorage.getItem('read-part-' + song.id), 10); if (v >= 0 && v < parts.length) partIdx = v; } catch { /* private mode */ }
+    }
+    heardEl.textContent = '';
+    setup();
+  }
+  songSel.addEventListener('change', () => chooseSong(songSel.value));
+  partSel.addEventListener('change', () => startPart(parseInt(partSel.value, 10)));
+  document.getElementById('again').addEventListener('click', () => startPart(partIdx));
+  document.getElementById('next').addEventListener('click', () => {
+    const p = parts[partIdx];
+    if (songLine < p.to && at < line.length) { songLine++; heardEl.textContent = ''; drawSong(); } else startPart(partIdx + 1);
+  });
+  document.getElementById('hear').addEventListener('click', hearIt);
   let resizeTimer = null;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { drawStaff(); newLine(true); }, 150);
+    resizeTimer = setTimeout(() => {
+      if (song) { const keep = at, done = line.slice(0, at); drawSong(); at = keep; line.forEach((n, i) => { if (i < keep) n.g.classList.add('done'); }); showCurrent(); }
+      else { drawStaff(); newLine(true); }
+    }, 150);
   });
   rangeBtns.forEach((b) => b.addEventListener('click', () => { range = b.dataset.v; setup(); }));
   document.getElementById('help').addEventListener('click', () => { showHelp(); if (line[at]) tone(line[at].midi); });
@@ -774,7 +1045,9 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   function heard(midi) { judge(midi); }
 
   setLetters(lettersOn);
-  setup();
+  let savedSong = '';
+  try { savedSong = localStorage.getItem('read-song') || ''; } catch { /* private mode */ }
+  chooseSong(savedSong);
 })();
 </script>
 </body>
