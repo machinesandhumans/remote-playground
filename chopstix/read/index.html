@@ -105,7 +105,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 .songmode #clefs, .songmode #ranges { display: none; }
 .songnav { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
 .songnav[hidden], .pick[hidden], .sound[hidden] { display: none; }
-#auto[aria-pressed="true"] { background: var(--ink-strong); color: #fff; border-color: var(--ink-strong); }
+/* no white top highlight on the dark "on" state: it read as a pill drawn off-center */
+#auto[aria-pressed="true"] { background: var(--ink-strong); color: #fff; border-color: var(--ink-strong); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 .ink { fill: var(--staff); }
 .stem { fill: var(--staff); transition: fill .2s; }
 .bar { stroke: var(--staff); stroke-width: 3; }
