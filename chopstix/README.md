@@ -54,9 +54,16 @@ npm test   # music theory (scales, spelling, chords) and pitch detection
 
 ## Note reader (`read/`)
 
-A large‑print sight reading practice page, built for an iPad held sideways. A very large treble staff shows four
-whole notes at a time; play the highlighted one on the real piano (tap **Listen**) or on the on‑screen keys.
-Right notes turn green and show their letter, wrong ones shake red. After two misses, or when you tap **Help**,
-the letter appears under the note and the matching key glows. **Letters on keys** can be switched off once the
-key names are familiar. Note sets: **C to G** (middle‑C position), **C to C**, and **Whole staff** (middle C up to G).
-Any octave on the piano counts. The clef and notehead shapes come from the Bravura music font (SIL Open Font License).
+A large‑print sight reading practice page, built for an iPad held sideways. A very large staff shows four whole
+notes at a time; play the highlighted one on the real piano (tap **Listen**) or on the on‑screen keys.
+
+- **Clef:** Treble, Bass, or Both (a grand staff). With Both, middle C shows up on either staff.
+- **How much of the piano:** 2 octaves (C3–C5, an octave either side of middle C), 4 octaves (C2–C6) or all 88 keys
+  (A0–C8). The on‑screen keyboard shows the same stretch, with middle C marked. Notes far above or below the staff
+  are written with 8va / 8vb, as in real music.
+- **Exact notes:** only the exact key counts. Playing C3 when middle C is written says "Right letter, wrong C. Go one octave higher".
+- Right notes turn green and show their letter; wrong ones shake red. After two misses, or on **Help**, the letter
+  appears under the note and the matching key glows. **Letters** turns the key labels on and off.
+
+The staff stretches to fill the space, so one clef and 2 octaves gives the biggest notes; all 88 keys on both staves is the smallest.
+The clef and notehead shapes come from the Bravura music font (SIL Open Font License).
