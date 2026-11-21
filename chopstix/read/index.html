@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Chopstix Note Reader</title>
+<style>
+/* Big-print sight reading: a large staff on top, the piano keys right below it. Same look as the scale dial. */
+:root {
+  --surface: #f3f3f1;
+  --panel: #fbfbfa;
+  --seam: #dcdcd8;
+  --seam-dark: #c9c9c4;
+  --ink: #9a9a95;
+  --ink-strong: #55554f;
+  --staff: #3a3a37;
+  --red: #ff2b2b;
+  --green: #16c060;
+  --green-soft: rgba(22, 192, 96, .35);
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--surface);
+  color: var(--ink-strong);
+  font-family: var(--font);
+  overflow: hidden;
+  padding-left: max(24px, env(safe-area-inset-left, 0px));
+  padding-right: max(24px, env(safe-area-inset-right, 0px));
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+/* Built for an iPad held sideways: everything fits one screen, no scrolling. */
+.stage {
+  height: 100%; max-width: 1280px; margin: 0 auto;
+  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
+  display: grid; grid-template-rows: auto minmax(0, 56fr) auto minmax(0, 40fr); gap: 1.6vh;
+  justify-items: center;
+}
+.topline { width: 100%; display: flex; align-items: center; gap: 10px; }
+.title { font-size: 14px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink); font-weight: 600; margin-right: auto; }
+.sound {
+  font: inherit; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05);
+}
+.sound[aria-pressed="true"] { color: var(--ink-strong); }
+.sound:focus-visible, .seg button:focus-visible { outline: 2px solid var(--green-soft); outline-offset: 3px; }
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 2px; box-shadow: inset 0 1px 0 #fff; }
+.seg button { font: inherit; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); background: none; border: 0; border-radius: 999px; padding: 5px 11px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink-strong); color: #fff; }
+.meter { display: none; width: 72px; height: 6px; border-radius: 3px; background: var(--seam); overflow: hidden; }
+.meter span { display: block; height: 100%; width: 0%; background: var(--green); transition: width .06s linear; }
+.listening .meter { display: inline-block; }
+.sens { display: none; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+.listening .sens { display: inline-flex; }
+.sens input { width: 100px; accent-color: var(--green); }
+.mic { display: inline-flex; align-items: center; gap: 8px; }
+.mic .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--seam-dark); transition: background .2s, box-shadow .2s, transform .08s; }
+.mic[aria-pressed="true"] .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.sound-msg { display: none; }
+
+/* the line under the staff: what was heard, plus the streak */
+.status { width: 100%; display: flex; justify-content: space-between; align-items: baseline; min-height: 30px; font-size: 22px; }
+.heard b { font-weight: 700; }
+.heard .yes { color: var(--green); }
+.heard .no { color: var(--red); }
+.heard.err { color: var(--red); font-size: 15px; line-height: 1.35; max-width: 760px; }
+.streak { font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
+.streak b { color: var(--ink-strong); font-size: 20px; letter-spacing: 0; margin-left: 6px; }
+
+svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; width: auto; height: 100%; }
+.staff-wrap, .keys-wrap { width: 100%; min-height: 0; display: flex; justify-content: center; align-items: center; }
+.paper { fill: #fff; stroke: var(--seam); }
+.line { stroke: var(--staff); stroke-width: 3.2; stroke-linecap: round; }
+.clef { fill: var(--staff); }
+.note { cursor: pointer; transition: opacity .25s; }
+.note .head { fill: var(--staff); transition: fill .2s; }
+.note .ledger { stroke: var(--staff); stroke-width: 3.2; stroke-linecap: round; }
+.note .name { font-family: var(--font); font-weight: 700; font-size: 46px; text-anchor: middle; fill: var(--green); opacity: 0; transition: opacity .25s; }
+.note .spot { fill: var(--green); opacity: 0; transition: opacity .25s; }
+.note.later { opacity: .28; }
+.note.now .spot { opacity: .1; }
+.note.done .head { fill: var(--green); }
+.note.done .ledger { stroke: var(--green); }
+.note.done .name, .note.hint .name { opacity: 1; }
+.note.miss .head { fill: var(--red); }
+.note.shake { animation: shake .35s; }
+@keyframes shake { 20%, 60% { transform: translateX(-9px); } 40%, 80% { transform: translateX(9px); } }
+
+.key { cursor: pointer; }
+.lbl { font-family: var(--font); font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+.no-letters .key .ring, .no-letters .key .lbl { opacity: 0; }
+.no-letters .key.target .ring, .no-letters .key.target .lbl { opacity: 1; }
+.hitfill { opacity: 0; transition: opacity .35s; pointer-events: none; }
+.hit-in .hitfill { fill: var(--green); opacity: 1; transition: none; }
+.hit-out .hitfill { fill: var(--red); opacity: 1; transition: none; }
+.hit-in .ring, .hit-out .ring { fill: #fff !important; }
+.press { opacity: 0; transition: opacity .3s; pointer-events: none; }
+.pressed .press, .hit-in .press, .hit-out .press { opacity: 1; transition: none; }
+/* help: the key to play gets a pulsing green outline */
+.aim { opacity: 0; fill: none; stroke: var(--green); stroke-width: 6; pointer-events: none; }
+.target .aim { animation: aim 1.1s ease-in-out infinite; }
+.target .ring { stroke: var(--green); }
+.target .lbl { fill: var(--green); }
+@keyframes aim { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .note.shake { animation: none; } .target .aim { animation: none; opacity: 1; } }
+</style>
+</head>
+<body>
+<main class="stage">
+  <div class="topline">
+    <span class="title">Read the note</span>
+    <span class="seg" id="levels" role="group" aria-label="Notes to practice">
+      <button data-level="0" aria-pressed="true">C to G</button>
+      <button data-level="1" aria-pressed="false">C to C</button>
+      <button data-level="2" aria-pressed="false">Whole staff</button>
+    </span>
+    <button id="help" class="sound">Help</button>
+    <button id="letters" class="sound" aria-pressed="true">Letters on keys</button>
+    <label class="sens">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+    <span class="meter" id="meter" aria-hidden="true"><span id="meterFill"></span></span>
+    <button id="mic" class="sound mic" aria-pressed="false"><span class="dot"></span>Listen</button>
+    <button id="sound" class="sound" aria-pressed="true">Sound on</button>
+    <span id="soundMsg" class="sound-msg" role="status" hidden></span>
+  </div>
+
+  <div class="staff-wrap">
+    <svg id="staff" viewBox="0 -30 1200 480" role="img" aria-label="Music staff"></svg>
+  </div>
+
+  <div class="status">
+    <span class="heard" id="heard" role="status" aria-live="polite"></span>
+    <span class="streak">In a row<b id="streak">0</b></span>
+  </div>
+
+  <div class="keys-wrap">
+    <svg id="keys" viewBox="0 0 1200 330" role="img" aria-label="Piano keys"></svg>
+  </div>
+</main>
+
+<script>
+(() => {
+  const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs = {}, parent) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+
+  // ---------- Staff ----------
+  // Glyphs from the Bravura music font (SIL Open Font License), in font units: 250 units = one staff space.
+  const G_CLEF = 'M376 415C374 427 376 428 382 434C490 535 572 662 572 815C572 902 548 988 507 1048C492 1070 466 1098 455 1098C441 1098 410 1072 390 1050C316 968 292 843 292 739C292 681 299 616 306 575C308 563 309 561 297 551C153 432 0 289 0 87C0 -87 119 -252 364 -252C387 -252 413 -250 433 -246C444 -244 446 -243 448 -255C460 -322 475 -409 475 -456C475 -604 375 -622 316 -622C262 -622 236 -606 236 -593C236 -586 245 -583 268 -576C299 -567 335 -540 335 -482C335 -427 300 -380 239 -380C172 -380 132 -433 132 -495C132 -560 171 -658 322 -658C389 -658 519 -628 519 -458C519 -401 501 -306 490 -244C488 -232 489 -233 503 -227C604 -187 671 -102 671 11C671 139 577 252 430 252C404 252 404 252 401 270ZM470 943C503 943 530 916 530 861C530 750 435 660 356 591C349 585 345 586 343 599C339 625 337 659 337 691C337 847 409 943 470 943ZM361 262C364 243 364 244 346 238C258 208 201 129 201 44C201 -46 248 -110 316 -133C324 -136 336 -139 343 -139C351 -139 355 -134 355 -128C355 -121 347 -118 340 -115C298 -97 268 -54 268 -8C268 49 307 92 368 109C384 113 386 112 388 101L438 -197C440 -208 439 -208 424 -211C408 -214 388 -216 368 -216C193 -216 80 -119 80 20C80 79 90 158 173 252C233 319 279 356 326 394C336 402 338 401 340 390ZM430 103C428 115 429 118 441 117C522 110 589 42 589 -46C589 -109 551 -160 495 -188C483 -194 481 -194 479 -182Z';
+  const WHOLE = 'M216 125C83 125 0 70 0 2C0 -65 57 -125 206 -125C370 -125 422 -68 422 2C422 73 309 125 216 125ZM111 63C122 98 159 103 190 103C259 103 314 29 314 -31C314 -62 301 -90 268 -98C258 -101 247 -102 237 -102C201 -102 164 -78 143 -50C123 -27 108 7 108 39C108 47 109 55 111 63Z';
+  const SP = 64;                 // one staff space in viewBox units (very large on purpose)
+  const TOP = 40;                // y of the top line (F5)
+  const BOTTOM = TOP + 4 * SP;   // y of the bottom line (E4)
+  const FS = SP / 250;           // font units -> viewBox units
+  // Notes are counted in white-key steps. 0 = C4 (middle C), 2 = E4 (bottom line) ... 11 = G5.
+  const WHITE_PCS = [0, 2, 4, 5, 7, 9, 11];
+  const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+  const stepMidi = (s) => 60 + 12 * Math.floor(s / 7) + WHITE_PCS[((s % 7) + 7) % 7];
+  const stepY = (s) => BOTTOM - (s - 2) * SP / 2;
+  const LEVELS = [[0, 4], [0, 7], [0, 11]]; // C4–G4, C4–C5, C4–G5
+  const SLOTS = [420, 610, 800, 990];
+
+  const staff = document.getElementById('staff');
+  el('rect', { class: 'paper', x: 0, y: -30, width: 1200, height: 480, rx: 14 }, staff);
+  for (let i = 0; i < 5; i++) el('line', { class: 'line', x1: 30, x2: 1170, y1: TOP + i * SP, y2: TOP + i * SP }, staff);
+  el('line', { class: 'line', x1: 30, x2: 30, y1: TOP, y2: BOTTOM }, staff);
+  el('path', { class: 'clef', d: G_CLEF, transform: `translate(64 ${stepY(4)}) scale(${FS} ${-FS})` }, staff);
+  const notesG = el('g', {}, staff);
+
+  let level = 0, line = [], at = 0, misses = 0, streak = 0, last = -1, waitTimer = null, busy = false;
+  try { const v = parseInt(localStorage.getItem('read-level'), 10); if (v >= 0 && v < LEVELS.length) level = v; } catch { /* private mode */ }
+
+  function pick() {
+    const [lo, hi] = LEVELS[level];
+    let s;
+    do {
+      // mostly small steps from the last note, like real beginner music; sometimes a jump
+      s = last >= 0 && Math.random() < .7
+        ? last + Math.round((Math.random() * 2 - 1) * 3)
+        : lo + Math.floor(Math.random() * (hi - lo + 1));
+    } while (s < lo || s > hi || s === last);
+    last = s;
+    return s;
+  }
+  function newLine() {
+    notesG.textContent = '';
+    line = SLOTS.map((x) => {
+      const s = pick();
+      const y = stepY(s);
+      const g = el('g', { class: 'note' }, notesG);
+      el('rect', { class: 'spot', x: x - 85, y: -20, width: 170, height: 460, rx: 18 }, g);
+      // ledger lines for notes below or above the staff
+      for (let l = 0; l >= s; l -= 2) el('line', { class: 'ledger', x1: x - 76, x2: x + 76, y1: stepY(l), y2: stepY(l) }, g);
+      for (let l = 12; l <= s; l += 2) el('line', { class: 'ledger', x1: x - 76, x2: x + 76, y1: stepY(l), y2: stepY(l) }, g);
+      el('path', { class: 'head', d: WHOLE, transform: `translate(${x - 211 * FS} ${y}) scale(${FS} ${-FS})` }, g);
+      const t = el('text', { class: 'name', x, y: 428 }, g);
+      t.textContent = LETTERS[((s % 7) + 7) % 7];
+      el('rect', { x: x - 85, y: -20, width: 170, height: 460, fill: 'transparent' }, g); // easy to tap
+      const n = { s, midi: stepMidi(s), g };
+      g.addEventListener('pointerdown', () => tone(n.midi));
+      return n;
+    });
+    at = 0;
+    showCurrent();
+  }
+  function showCurrent() {
+    misses = 0;
+    line.forEach((n, i) => {
+      n.g.classList.toggle('now', i === at);
+      n.g.classList.toggle('later', i > at);
+      n.g.classList.remove('hint', 'miss');
+    });
+    keyEls.forEach((k) => k.g.classList.remove('target'));
+  }
+  function showHelp() {
+    const n = line[at];
+    if (!n) return;
+    n.g.classList.add('hint');
+    const k = keyEls.find((x) => x.midi === n.midi);
+    if (k) k.g.classList.add('target');
+  }
+
+  // Judge a note that was played (on the piano or on screen). Any octave counts.
+  function judge(midi) {
+    const n = line[at];
+    if (!n || busy) return;
+    const pc = ((midi % 12) + 12) % 12;
+    const ok = pc === n.midi % 12;
+    lightKey(midi, ok, n);
+    if (ok) {
+      streak++;
+      heardEl.innerHTML = `<b class="yes">${LETTERS[((n.s % 7) + 7) % 7]}</b>, that's right`;
+      n.g.classList.remove('miss', 'now');
+      n.g.classList.add('done');
+      busy = true;
+      setTimeout(() => {
+        busy = false;
+        at++;
+        if (at >= line.length) newLine(); else showCurrent();
+      }, 650);
+    } else {
+      streak = 0;
+      misses++;
+      heardEl.innerHTML = `That was <b class="no">${NAMES[pc]}</b>. Try again`;
+      n.g.classList.add('miss');
+      n.g.classList.remove('shake'); void n.g.getBBox(); n.g.classList.add('shake');
+      setTimeout(() => n.g.classList.remove('miss', 'shake'), 500);
+      if (misses >= 2) showHelp();
+    }
+    document.getElementById('streak').textContent = streak;
+  }
+
+  // ---------- Keyboard: C4 … B5 ----------
+  const keysSvg = document.getElementById('keys');
+  const PX = 20, PY = 14, NW = 14, W = 1160 / NW, H = 300, BW = 52, BH = 185;
+  const keyEls = []; // {midi, g}
+  const defs = el('defs', {}, keysSvg);
+  const clip = el('clipPath', { id: 'bed' }, defs);
+  el('rect', { x: PX - 1, y: PY - 1, width: W * NW + 2, height: H + 2, rx: 3 }, clip);
+  const bed = el('g', { 'clip-path': 'url(#bed)' }, keysSvg);
+  const wg = el('linearGradient', { id: 'whiteKey', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: 0, 'stop-color': '#f2f2f0' }, wg); el('stop', { offset: .12, 'stop-color': '#ffffff' }, wg); el('stop', { offset: 1, 'stop-color': '#fafaf9' }, wg);
+  const bg = el('linearGradient', { id: 'blackKey', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: 0, 'stop-color': '#1f1f21' }, bg); el('stop', { offset: 1, 'stop-color': '#3a3a3d' }, bg);
+  const pg = el('linearGradient', { id: 'pressShade', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: 0, 'stop-color': '#000', 'stop-opacity': .22 }, pg); el('stop', { offset: .18, 'stop-color': '#000', 'stop-opacity': .06 }, pg); el('stop', { offset: .4, 'stop-color': '#000', 'stop-opacity': 0 }, pg);
+
+  function label(g, cx, cy, text, dark) {
+    el('circle', { class: 'ring', cx, cy, r: 17, fill: dark ? '#2f2f32' : '#fbfbfa', stroke: dark ? '#4a4a4e' : '#d6d6d1', 'stroke-width': 1.5 }, g);
+    const t = el('text', { class: 'lbl', x: cx, y: cy + 1, 'font-size': text.length > 1 ? 14 : 17, fill: dark ? '#8d8d92' : 'var(--ink)' }, g);
+    t.textContent = text;
+  }
+  for (let i = 0; i < NW; i++) {
+    const m = stepMidi(i);
+    const g = el('g', { class: 'key', 'data-midi': m }, bed);
+    const x = PX + i * W;
+    el('rect', { x, y: PY, width: W, height: H, rx: 3, fill: 'url(#whiteKey)' }, g);
+    el('rect', { class: 'hitfill', x, y: PY, width: W, height: H, rx: 3, fill: 'transparent' }, g);
+    el('rect', { class: 'press', x, y: PY, width: W, height: H, rx: 3, fill: 'url(#pressShade)' }, g);
+    el('rect', { x, y: PY, width: W, height: H, rx: 3, fill: 'none', stroke: '#8e8e89', 'stroke-width': 1, 'vector-effect': 'non-scaling-stroke' }, g);
+    el('rect', { class: 'aim', x: x + 4, y: PY + 4, width: W - 8, height: H - 8, rx: 6 }, g);
+    label(g, x + W / 2, PY + H - 40, NAMES[m % 12], false);
+    keyEls.push({ midi: m, g });
+  }
+  for (let i = 0; i < NW; i++) {
+    const m = stepMidi(i);
+    if ([4, 11].includes(m % 12)) continue; // no black key after E or B
+    const g = el('g', { class: 'key black', 'data-midi': m + 1 }, bed);
+    const cx = PX + (i + 1) * W;
+    el('rect', { x: cx - BW / 2 - 1, y: PY, width: BW + 2, height: BH + 3, rx: 5, fill: '#000', opacity: .1 }, g);
+    el('rect', { x: cx - BW / 2, y: PY, width: BW, height: BH, rx: 5, fill: 'url(#blackKey)', stroke: '#141416' }, g);
+    el('rect', { class: 'hitfill', x: cx - BW / 2, y: PY, width: BW, height: BH, rx: 5, fill: 'transparent' }, g);
+    el('rect', { class: 'press', x: cx - BW / 2, y: PY, width: BW, height: BH, rx: 5, fill: 'url(#pressShade)' }, g);
+    label(g, cx, PY + BH - 30, NAMES[(m + 1) % 12], true);
+    keyEls.push({ midi: m + 1, g });
+  }
+  let hitTimer = null;
+  function lightKey(midi, ok, n) {
+    // light the key that was played; for a piano in another octave, light the one on the staff's octave
+    const pc = ((midi % 12) + 12) % 12;
+    const k = keyEls.find((x) => x.midi === midi)
+      || (ok && keyEls.find((x) => x.midi === n.midi))
+      || keyEls.find((x) => x.midi % 12 === pc && x.midi >= 60 && x.midi <= 71);
+    keyEls.forEach((x) => x.g.classList.remove('hit-in', 'hit-out'));
+    clearTimeout(hitTimer);
+    if (!k) return;
+    k.g.classList.add(ok ? 'hit-in' : 'hit-out');
+    hitTimer = setTimeout(() => k.g.classList.remove('hit-in', 'hit-out'), 900);
+  }
+
+  // ---------- Buttons ----------
+  const levelBtns = [...document.querySelectorAll('#levels button')];
+  function setLevel(v) {
+    level = v;
+    levelBtns.forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.level === v)));
+    try { localStorage.setItem('read-level', String(v)); } catch { /* private mode */ }
+    last = -1;
+    newLine();
+  }
+  levelBtns.forEach((b) => b.addEventListener('click', () => setLevel(+b.dataset.level)));
+  document.getElementById('help').addEventListener('click', () => { showHelp(); if (line[at]) tone(line[at].midi); });
+  const lettersBtn = document.getElementById('letters');
+  function setLetters(on) {
+    document.body.classList.toggle('no-letters', !on);
+    lettersBtn.setAttribute('aria-pressed', String(on));
+    try { localStorage.setItem('read-letters', on ? '1' : '0'); } catch { /* private mode */ }
+  }
+  let lettersOn = true;
+  try { lettersOn = localStorage.getItem('read-letters') !== '0'; } catch { /* private mode */ }
+  lettersBtn.addEventListener('click', () => setLetters(lettersBtn.getAttribute('aria-pressed') !== 'true'));
+
+  // ---------- Sound ----------
+  let mic = null, micStarting = false;
+  function setAudioSession(type) {
+    try { if (navigator.audioSession && navigator.audioSession.type !== type) navigator.audioSession.type = type; } catch (e) { /* not supported */ }
+  }
+  let ctx = null, soundOn = true, cancelScale = [], scalePcs = new Set(), busyUntil = 0;
+  const soundBtn = document.getElementById('sound');
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    soundBtn.textContent = soundOn ? 'Sound on' : 'Sound off';
+    soundBtn.setAttribute('aria-pressed', String(soundOn));
+  });
+  function unlock() {
+    // 'playback' keeps Silent mode from muting notes, but it forbids recording, so never
+    // set it while (or just before) the microphone is in use.
+    setAudioSession(mic || micStarting ? 'play-and-record' : 'playback');
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+    }
+    if (ctx.state !== 'running') {
+      const b = ctx.createBufferSource();
+      b.buffer = ctx.createBuffer(1, 1, 22050);
+      b.connect(ctx.destination);
+      b.start(0);
+      ctx.resume().catch(() => {});
+    }
+    return ctx;
+  }
+  ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach((g) => window.addEventListener(g, unlock, true));
+  // On iPad/iPhone, Web Audio is silenced by Silent mode, and inside apps (like the Claude app)
+  // the page can't override that. Pre-rendered notes played through an <audio> element are
+  // treated as media playback instead, so on iOS we always use those.
+  const isIOS = /iP(ad|hone|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const useHtmlAudio = isIOS;
+  const wavCache = new Map();
+  function noteWav(midi) {
+    if (wavCache.has(midi)) return wavCache.get(midi);
+    const sr = 22050, len = Math.floor(sr * 1.3), f = 440 * Math.pow(2, (midi - 69) / 12);
+    const buf = new ArrayBuffer(44 + len * 2), v = new DataView(buf);
+    const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + len * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true);
+    v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, len * 2, true);
+    for (let i = 0; i < len; i++) {
+      const t = i / sr;
+      const env = Math.min(1, t * 120) * Math.exp(-t * 3.2);
+      // triangle-ish fundamental plus soft overtones
+      const x = Math.sin(2 * Math.PI * f * t) + .3 * Math.sin(4 * Math.PI * f * t) + .1 * Math.sin(6 * Math.PI * f * t);
+      v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, x * env * .45)) * 32767, true);
+    }
+    // data: URL rather than blob:, since some hosts only allow data: media.
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    const url = 'data:audio/wav;base64,' + btoa(bin);
+    wavCache.set(midi, url);
+    return url;
+  }
+  // iPad: making a new <audio> element for every tap piles up decoders and makes Safari
+  // lag, then play stale or garbled notes. Keep two reusable players per note instead.
+  const players = new Map();
+  function player(midi) {
+    let pool = players.get(midi);
+    if (!pool) {
+      pool = [0, 1].map(() => { const a = new Audio(noteWav(midi)); a.setAttribute('playsinline', ''); a.preload = 'auto'; return a; });
+      pool.next = 0;
+      players.set(midi, pool);
+    }
+    const a = pool[pool.next];
+    pool.next = (pool.next + 1) % pool.length;
+    if (!a.paused) a.pause();
+    return a;
+  }
+  function tone(midi, when = 0, dur = 1.2, vol = .22) {
+    if (!soundOn) return;
+    busyUntil = Math.max(busyUntil, performance.now() + (when + dur * .8) * 1000);
+    if (useHtmlAudio) {
+      const a = player(midi);
+      const go = () => { try { a.currentTime = 0; } catch { /* not loaded yet */ } a.play().then(soundOk, soundBlocked); };
+      if (when > 0) setTimeout(go, when * 1000); else go();
+      return;
+    }
+    const c = unlock();
+    if (!c) return;
+    if (c.state === 'running') { webTone(midi, when, dur, vol); soundOk(); }
+    else {
+      c.resume().then(() => { webTone(midi, when, dur, vol); soundOk(); }).catch(soundBlocked);
+      setTimeout(() => { if (c.state !== 'running') soundBlocked(); }, 800);
+    }
+  }
+  // Tell the person on screen when the browser is refusing to play sound.
+  const msg = document.getElementById('soundMsg');
+  function soundOk() { msg.hidden = true; }
+  // Mark asked for no pop-up text here; just note it for debugging.
+  function soundBlocked() { console.warn('sound may be blocked'); }
+  function webTone(midi, when, dur, vol) {
+    const t = ctx.currentTime + when + .01;
+    const f = 440 * Math.pow(2, (midi - 69) / 12);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + .008);
+    g.gain.exponentialRampToValueAtTime(vol * .3, t + .3);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    g.connect(ctx.destination);
+    [[1, 'triangle', 1], [2, 'sine', .3], [3, 'sine', .1]].forEach(([m, type, a]) => {
+      const o = ctx.createOscillator();
+      o.type = type; o.frequency.value = f * m;
+      const og = ctx.createGain(); og.gain.value = a;
+      o.connect(og).connect(g);
+      o.start(t); o.stop(t + dur + .05);
+    });
+  }
+  function tick() {
+    if (!soundOn || !ctx || useHtmlAudio || ctx.state !== 'running') return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = 2400;
+    g.gain.setValueAtTime(.04, t); g.gain.exponentialRampToValueAtTime(.0001, t + .03);
+    o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + .04);
+  }
+
+  keyEls.forEach(({ midi, g }) => {
+    g.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      tone(midi);
+      judge(midi);
+      g.classList.add('pressed');
+    });
+    const up = () => { g.classList.remove('pressed'); };
+    g.addEventListener('pointerup', up);
+    g.addEventListener('pointerleave', up);
+    g.addEventListener('pointercancel', up);
+  });
+  // Warm up the iPad note cache so the first tap isn't delayed.
+  if (useHtmlAudio) setTimeout(() => keyEls.forEach(({ midi }) => player(midi)), 300);
+
+  // ---------- Listening to a real piano ----------
+  // Autocorrelation pitch detection: reliable for one note at a time.
+  function detectPitch(buf, sr, full = true) {
+    const n = buf.length;
+    let rms = 0;
+    for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
+    rms = Math.sqrt(rms / n);
+    if (!full || rms < 0.0003) return { freq: -1, rms, clarity: 0 };
+    const minLag = Math.floor(sr / 2100), maxLag = Math.min(Math.floor(sr / 62), n >> 1), size = n - maxLag;
+    const nsdf = new Float32Array(maxLag + 1);
+    let best = 0;
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let ac = 0, m = 0;
+      for (let i = 0; i < size; i++) { const a = buf[i], b = buf[i + lag]; ac += a * b; m += a * a + b * b; }
+      nsdf[lag] = m > 0 ? 2 * ac / m : 0;
+      if (nsdf[lag] > best) best = nsdf[lag];
+    }
+    if (best < 0.5) return { freq: -1, rms, clarity: best };
+    let lag = -1;
+    for (let i = minLag + 1; i < maxLag; i++) {
+      if (nsdf[i] >= best * 0.9 && nsdf[i] >= nsdf[i - 1] && nsdf[i] >= nsdf[i + 1]) { lag = i; break; }
+    }
+    if (lag < 0) return { freq: -1, rms, clarity: best };
+    const a = nsdf[lag - 1], b = nsdf[lag], c = nsdf[lag + 1];
+    const shift = (a - c) / (2 * (a - 2 * b + c) || 1);
+    return { freq: sr / (lag + shift), rms, clarity: b };
+  }
+
+  const micBtn = document.getElementById('mic');
+  const heardEl = document.getElementById('heard');
+  const micDot = micBtn.querySelector('.dot');
+  const meterFill = document.getElementById('meterFill');
+  micBtn.addEventListener('click', async () => {
+    if (mic) { stopMic(); return; }
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showMicError({ name: 'NoApi' });
+      return;
+    }
+    heardEl.textContent = 'Asking for the microphone…';
+    // Make the listening context right here in the tap, so iPad lets it run.
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const mctx = new AC();
+    mctx.resume().catch(() => {});
+    micStarting = true;
+    setAudioSession('play-and-record');
+    let stream;
+    try {
+      // Ask for the mic first, straight from the tap, before touching audio playback.
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      } catch (e) {
+        if (e && (e.name === 'OverconstrainedError' || e.name === 'TypeError')) stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        else throw e;
+      }
+    } catch (e) {
+      micStarting = false;
+      setAudioSession('playback');
+      mctx.close().catch(() => {});
+      showMicError(e);
+      return;
+    }
+    micStarting = false;
+    try {
+      const c = mctx;
+      if (c.state !== 'running') await c.resume().catch(() => {});
+      const src = c.createMediaStreamSource(stream);
+      const an = c.createAnalyser();
+      an.fftSize = 2048;
+      // Safari only processes audio that reaches the speakers, so route the analyser
+      // to the output through a silent gain node.
+      const mute = c.createGain();
+      mute.gain.value = 0;
+      src.connect(an);
+      an.connect(mute);
+      mute.connect(c.destination);
+      mic = { stream, ctx: c, an, buf: new Float32Array(2048), sr: c.sampleRate, candF: null, stable: 0, lo: 0, hi: 0, hist: [0, 0, 0], window: 0, quietFor: 0 };
+      mic.timer = setInterval(listen, 16);
+      micBtn.setAttribute('aria-pressed', 'true');
+      micBtn.lastChild.textContent = 'Listening';
+      document.body.classList.add('listening');
+      heardEl.classList.remove('err');
+      heardEl.textContent = 'Play a note on your piano';
+    } catch (e) {
+      stream.getTracks().forEach((t) => t.stop());
+      showMicError({ name: 'AudioSetup', message: e && e.message });
+    }
+  });
+  // Say which situation we're in, so it's clear what to change.
+  function showMicError(e) {
+    const name = (e && e.name) || 'Unknown';
+    const inApp = isIOS && !/Safari\//.test(navigator.userAgent); // in-app browsers (e.g. inside the Claude app) drop "Safari/"
+    let text;
+    if (name === 'NoApi') {
+      text = inApp
+        ? 'This in-app browser can\'t use the microphone. Open this page in Safari (tap the compass/Safari icon, or copy the link into Safari).'
+        : 'This browser can\'t use the microphone here. Open the page in Safari or Chrome.';
+    } else if (name === 'NotAllowedError' || name === 'SecurityError') {
+      text = inApp
+        ? 'The app you opened this in isn\'t allowed to use the microphone. Open this page in Safari instead (tap the compass/Safari icon, or copy the link into Safari).'
+        : isIOS
+          ? 'Microphone is blocked for this site. In Safari tap “aA” (or the page icon) in the address bar → Website Settings → Microphone → Allow, then reload. Also check Settings → Apps → Safari → Microphone is set to Ask or Allow.'
+          : 'Microphone is blocked for this site. Click the icon next to the address bar, allow the microphone, then reload.';
+    } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+      text = 'No microphone was found on this device.';
+    } else if (name === 'NotReadableError' || name === 'AbortError') {
+      text = 'Another app is using the microphone. Close it (or end the call) and tap Listen again.';
+    } else {
+      text = 'Couldn\'t start the microphone (' + name + '). Reload the page and tap Listen again.';
+    }
+    heardEl.textContent = text;
+    heardEl.classList.add('err');
+    console.warn('mic error', e);
+  }
+  function stopMic() {
+    setAudioSession('playback');
+    clearInterval(mic.timer);
+    mic.stream.getTracks().forEach((t) => t.stop());
+    mic.ctx.close().catch(() => {});
+    meterFill.style.width = '0%';
+    mic = null;
+    micBtn.setAttribute('aria-pressed', 'false');
+    micBtn.lastChild.textContent = 'Listen';
+    document.body.classList.remove('listening');
+    micDot.style.transform = '';
+    heardEl.textContent = '';
+  }
+  function listen() {
+    // iPad can pause ("interrupt") the context when the audio mode changes; wake it up.
+    if (mic.ctx.state !== 'running') mic.ctx.resume().catch(() => {});
+    mic.an.getFloatTimeDomainData(mic.buf);
+    const { rms } = detectPitch(mic.buf, mic.sr, false);
+    micDot.style.transform = `scale(${1 + Math.min(1.2, rms * 12)})`;
+    // Level meter: log scale so quiet rooms still show movement.
+    const lvl = rms > 0 ? Math.max(0, Math.min(1, (20 * Math.log10(rms) + 60) / 50)) : 0;
+    meterFill.style.width = (lvl * 100).toFixed(0) + '%';
+    if (rms < 0.0005) {
+      mic.quietFor++;
+      if (mic.quietFor === 190 && !heardEl.querySelector('b')) heardEl.textContent = 'The microphone isn\'t picking up any sound. Check nothing is covering it, then tap Listen off and on.';
+    } else mic.quietFor = 0;
+    // Only count a note just after a fresh key strike: a sharp jump in loudness opens a
+    // short window. Ringing strings and the tail of the last note never jump, so they're ignored.
+    // Loudness of just the newest ~10 ms, so a key strike shows up as a sharp jump even
+    // while the previous note is still ringing.
+    let e = 0;
+    for (let i = mic.buf.length - 512; i < mic.buf.length; i++) e += mic.buf[i] * mic.buf[i];
+    const now = Math.sqrt(e / 512);
+    const before = mic.hist[0];
+    mic.hist.push(now); mic.hist.shift();
+    if (now > before * sens.ratio && now > sens.floor && mic.window < 20) { mic.window = 24; mic.candF = null; mic.stable = 0; }
+    if (mic.window > 0) mic.window--;
+    if (performance.now() < busyUntil) return; // don't "hear" our own speaker
+    // The pitch analysis is the expensive part, so only run it just after a key strike.
+    const { freq, clarity } = mic.window > 0 ? detectPitch(mic.buf, mic.sr, true) : { freq: -1, clarity: 0 };
+    if (mic.window > 0 && freq > 0 && rms > sens.floor && clarity > sens.clarity) {
+      // A piano note holds a rock-steady pitch; voices slide and wobble. Require a few
+      // readings in a row that stay within a fraction of a semitone.
+      const mf = 69 + 12 * Math.log2(freq / 440);
+      if (mic.candF != null && Math.abs(mf - mic.candF) < 0.25) {
+        mic.stable++; mic.lo = Math.min(mic.lo, mf); mic.hi = Math.max(mic.hi, mf);
+      } else { mic.candF = mf; mic.stable = 1; mic.lo = mic.hi = mf; }
+      if (mic.stable >= sens.frames && mic.hi - mic.lo < 0.3) {
+        mic.window = 0;
+        heard(Math.round((mic.lo + mic.hi) / 2));
+      }
+    } else { mic.candF = null; mic.stable = 0; }
+  }
+  // Sensitivity slider (0 = strict, 1 = catches everything). 0.5 matches the tuned defaults.
+  const sensEl = document.getElementById('sens');
+  const sens = {};
+  function setSens(v) {
+    const x = Math.max(0, Math.min(1, v));
+    sens.ratio = 1.5 * Math.pow(1.35, 1 - 2 * x);   // loudness jump that counts as a strike: 2.0 .. 1.1
+    sens.floor = 0.0008 * Math.pow(4, 1 - 2 * x);   // quietest sound considered: 0.0032 .. 0.0002
+    sens.clarity = 0.7 + 0.1 * (1 - 2 * x);         // how clean the pitch must be: 0.8 .. 0.6
+    sens.frames = x < 0.34 ? 4 : x < 0.67 ? 3 : 2;   // steady readings needed
+    try { localStorage.setItem('dial-sens', String(x)); } catch { /* private mode */ }
+  }
+  let saved = NaN;
+  try { saved = parseFloat(localStorage.getItem('dial-sens')); } catch { /* private mode */ }
+  sensEl.value = Number.isFinite(saved) ? saved : 0.5;
+  setSens(parseFloat(sensEl.value));
+  sensEl.addEventListener('input', () => setSens(parseFloat(sensEl.value)));
+
+  function heard(midi) { judge(midi); }
+
+  setLetters(lettersOn);
+  setLevel(level);
+})();
+</script>
+</body>
+</html>
