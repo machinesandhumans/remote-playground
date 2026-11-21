@@ -52,6 +52,7 @@ body {
   background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 6px 12px; cursor: pointer;
   box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05);
 }
+.sound-msg { flex: 1; margin: 0 16px; font-size: 14px; color: var(--red); text-align: right; }
 .sound[aria-pressed="true"] { color: var(--ink-strong); }
 .sound:focus-visible { outline: 2px solid var(--red-soft); outline-offset: 4px; }
 .dial:focus { outline: none; }
@@ -77,6 +78,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 <main class="stage">
   <div class="topline">
     <span class="title">Major scale</span>
+    <span id="soundMsg" class="sound-msg" role="status" hidden></span>
     <button id="sound" class="sound" aria-pressed="true">Sound on</button>
   </div>
 
@@ -322,10 +324,11 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     return ctx;
   }
   ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach((g) => window.addEventListener(g, unlock, true));
-  // Older iPads (before iPadOS 17) silence Web Audio when the side switch / Silent mode is on.
-  // On those we play pre-rendered notes through an <audio> element instead, which isn't muted.
+  // On iPad/iPhone, Web Audio is silenced by Silent mode, and inside apps (like the Claude app)
+  // the page can't override that. Pre-rendered notes played through an <audio> element are
+  // treated as media playback instead, so on iOS we always use those.
   const isIOS = /iP(ad|hone|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const useHtmlAudio = isIOS && !navigator.audioSession;
+  const useHtmlAudio = isIOS;
   const wavCache = new Map();
   function noteWav(midi) {
     if (wavCache.has(midi)) return wavCache.get(midi);
@@ -342,7 +345,11 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       const x = Math.sin(2 * Math.PI * f * t) + .3 * Math.sin(4 * Math.PI * f * t) + .1 * Math.sin(6 * Math.PI * f * t);
       v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, x * env * .45)) * 32767, true);
     }
-    const url = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    // data: URL rather than blob:, since some hosts only allow data: media.
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    const url = 'data:audio/wav;base64,' + btoa(bin);
     wavCache.set(midi, url);
     return url;
   }
@@ -351,14 +358,26 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     if (useHtmlAudio) {
       const a = new Audio(noteWav(midi));
       a.setAttribute('playsinline', '');
-      const go = () => a.play().catch(() => {});
+      const go = () => a.play().then(soundOk, soundBlocked);
       if (when > 0) setTimeout(go, when * 1000); else go();
       return;
     }
     const c = unlock();
     if (!c) return;
-    if (c.state === 'running') webTone(midi, when, dur, vol);
-    else c.resume().then(() => webTone(midi, when, dur, vol)).catch(() => {});
+    if (c.state === 'running') { webTone(midi, when, dur, vol); soundOk(); }
+    else {
+      c.resume().then(() => { webTone(midi, when, dur, vol); soundOk(); }).catch(soundBlocked);
+      setTimeout(() => { if (c.state !== 'running') soundBlocked(); }, 800);
+    }
+  }
+  // Tell the person on screen when the browser is refusing to play sound.
+  const msg = document.getElementById('soundMsg');
+  function soundOk() { msg.hidden = true; }
+  function soundBlocked() {
+    msg.hidden = false;
+    msg.textContent = isIOS
+      ? 'No sound? Turn off Silent mode (bell icon in Control Center), turn the volume up, and tap again. If you opened this in the Claude app, try opening the link in Safari.'
+      : 'Your browser blocked the sound. Turn the volume up and tap a key again.';
   }
   function webTone(midi, when, dur, vol) {
     const t = ctx.currentTime + when + .01;
