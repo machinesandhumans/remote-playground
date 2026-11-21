@@ -21,6 +21,8 @@
   --black-key-edge: #1d1d1f;
   --red: #ff2b2b;
   --red-soft: rgba(255, 43, 43, .35);
+  --green: #16c060;
+  --green-soft: rgba(22, 192, 96, .35);
   --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
@@ -53,26 +55,27 @@ body {
   box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05);
 }
 .meter { display: none; width: 72px; height: 6px; border-radius: 3px; background: var(--seam); overflow: hidden; margin-right: 10px; }
-.meter span { display: block; height: 100%; width: 0%; background: var(--red); transition: width .06s linear; }
+.meter span { display: block; height: 100%; width: 0%; background: var(--green); transition: width .06s linear; }
 .listening .meter { display: inline-block; }
 .mic { display: inline-flex; align-items: center; gap: 8px; margin-right: 8px; }
 .mic .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--seam-dark); transition: background .2s, box-shadow .2s, transform .08s; }
 .mic[aria-pressed="true"] { color: var(--ink-strong); }
-.mic[aria-pressed="true"] .dot { background: var(--red); box-shadow: 0 0 8px var(--red); }
+.mic[aria-pressed="true"] .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
 .heard { margin-right: 14px; font-size: 16px; color: var(--ink-strong); letter-spacing: .02em; white-space: nowrap; }
 .heard b { font-weight: 700; }
 .heard.err { white-space: normal; color: var(--red); font-size: 14px; max-width: 640px; text-align: right; line-height: 1.35; }
-.heard .yes { color: var(--red); }
-.heard .no { color: var(--ink); }
-/* a key that was just heard: in the scale = solid red badge, not in the scale = struck-out grey badge */
-.hit-in .ring { fill: var(--red) !important; stroke: var(--red) !important; }
-.hit-in .lbl { fill: #fff !important; }
-.hit-in .glow { opacity: 1; }
-.hit-out .ring { fill: #cfcfca !important; stroke: #ffffff !important; stroke-width: 3px; }
-.hit-out .lbl { fill: #2b2b2d !important; text-decoration: line-through; }
+.heard .yes { color: var(--green); }
+.heard .no { color: var(--red); }
+/* a key that was just heard lights up: green = in the scale, red = not in the scale */
+.hitfill { opacity: 0; transition: opacity .35s; pointer-events: none; }
+.hit-in .hitfill { fill: var(--green); opacity: .8; transition: none; }
+.hit-out .hitfill { fill: var(--red); opacity: .8; transition: none; }
+.hit-in .lbl, .hit-out .lbl { fill: #fff !important; }
+.hit-in .ring, .hit-out .ring { fill: transparent !important; stroke: rgba(255,255,255,.7) !important; }
+.hit-in .glow, .hit-out .glow { opacity: 0 !important; }
 .sound-msg { flex: 1; margin: 0 16px; font-size: 14px; color: var(--red); text-align: right; }
 .sound[aria-pressed="true"] { color: var(--ink-strong); }
-.sound:focus-visible { outline: 2px solid var(--red-soft); outline-offset: 4px; }
+.sound:focus-visible { outline: 2px solid var(--green-soft); outline-offset: 4px; }
 .dial:focus { outline: none; }
 .focus-ring { opacity: 0; }
 .dial:focus-visible .focus-ring { opacity: 1; }
@@ -83,13 +86,15 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 .key { cursor: pointer; }
 .lbl { font-family: var(--font); font-weight: 600; text-anchor: middle; dominant-baseline: central; transition: fill .25s; }
 .ring { transition: stroke .25s, fill .25s; }
-.on .lbl { fill: var(--red); }
-.on .ring { stroke: var(--red); }
+.on .lbl { fill: var(--green); }
 .glow { opacity: 0; transition: opacity .3s; }
-.on .glow { opacity: 1; }
+/* the root (the key's own note) gets a solid green circle; the other scale notes are a green letter */
+.root .ring { fill: var(--green) !important; stroke: var(--green) !important; }
+.root .lbl { fill: #fff !important; }
+.root .glow { opacity: 1; }
 .note-name { fill: var(--ink); font-size: 20px; transition: fill .25s; }
-.note-name.active { fill: var(--red); }
-.center-letter { fill: var(--red); font-size: 64px; font-weight: 600; }
+.note-name.active { fill: var(--green); }
+.center-letter { fill: var(--green); font-size: 64px; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .lbl, .ring, .glow, .note-name { transition: none; } }
 </style>
 
@@ -139,7 +144,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       <circle r="150" fill="url(#plate)" stroke="var(--seam)" stroke-width="1"/>
       <circle r="138" fill="none" stroke="#ffffff" stroke-width="1.5" opacity=".9"/>
       <g id="dial" class="dial" tabindex="0" role="slider" aria-label="Key" aria-valuemin="0" aria-valuemax="11">
-        <circle class="focus-ring" r="142" fill="none" stroke="var(--red-soft)" stroke-width="3"/>
+        <circle class="focus-ring" r="142" fill="none" stroke="var(--green-soft)" stroke-width="3"/>
         <circle r="134" fill="url(#rim)"/>
         <circle r="130" fill="url(#dish)"/>
         <!-- inner wall shadow -->
@@ -189,7 +194,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   el('feGaussianBlur', { stdDeviation: 6 }, glowF);
 
   function label(g, cx, cy, text, dark) {
-    el('circle', { class: 'glow', cx, cy, r: 20, fill: 'var(--red)', opacity: 0, filter: 'url(#keyGlow)', style: 'fill-opacity:.45' }, g);
+    el('circle', { class: 'glow', cx, cy, r: 20, fill: 'var(--green)', opacity: 0, filter: 'url(#keyGlow)', style: 'fill-opacity:.45' }, g);
     el('circle', { class: 'ring', cx, cy, r: 17, fill: dark ? '#2f2f32' : '#fbfbfa', stroke: dark ? '#4a4a4e' : '#d6d6d1', 'stroke-width': 1.5 }, g);
     const t = el('text', { class: 'lbl', x: cx, y: cy + 1, 'font-size': text.length > 1 ? 14 : 17, fill: dark ? '#8d8d92' : 'var(--ink)' }, g);
     t.textContent = text;
@@ -199,6 +204,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     const g = el('g', { class: 'key', 'data-midi': m }, bed);
     const x = PX + i * W;
     el('rect', { x: x + 1, y: PY - 2, width: W - 2, height: H + 2, rx: 4, fill: 'url(#whiteKey)', stroke: '#d9d9d5' }, g);
+    el('rect', { class: 'hitfill', x: x + 1, y: PY - 2, width: W - 2, height: H + 2, rx: 4, fill: 'transparent' }, g);
     label(g, x + W / 2, PY + H - 42, NAMES[m % 12], false);
     keyEls.push({ midi: m, g });
   });
@@ -212,6 +218,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     const lx = boundary === 0 ? PX + 19 : boundary === 9 ? PX + 9 * W - 19 : cx;
     el('rect', { x: cx - BW / 2 + 3, y: PY - 2, width: BW, height: BH + 4, rx: 5, fill: '#000', opacity: .12 }, g);
     el('rect', { x: cx - BW / 2, y: PY - 2, width: BW, height: BH, rx: 5, fill: 'url(#blackKey)', stroke: '#141416' }, g);
+    el('rect', { class: 'hitfill', x: cx - BW / 2, y: PY - 2, width: BW, height: BH, rx: 5, fill: 'transparent' }, g);
     label(g, lx, PY + BH - 32, NAMES[m % 12], true);
     keyEls.push({ midi: m, g });
   });
@@ -252,7 +259,10 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     const pcs = scalePcs = new Set();
     let p = k; pcs.add(p);
     STEPS.forEach((s) => { p = (p + s) % 12; pcs.add(p); });
-    keyEls.forEach(({ midi, g }) => g.classList.toggle('on', pcs.has(midi % 12)));
+    keyEls.forEach(({ midi, g }) => {
+      g.classList.toggle('on', pcs.has(midi % 12));
+      g.classList.toggle('root', midi % 12 === k);
+    });
     dial.setAttribute('aria-valuenow', k);
     dial.setAttribute('aria-valuetext', `${NAMES[k]} major`);
     if (changed) tick();
@@ -401,12 +411,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   // Tell the person on screen when the browser is refusing to play sound.
   const msg = document.getElementById('soundMsg');
   function soundOk() { msg.hidden = true; }
-  function soundBlocked() {
-    msg.hidden = false;
-    msg.textContent = isIOS
-      ? 'No sound? Turn off Silent mode (bell icon in Control Center), turn the volume up, and tap again. If you opened this in the Claude app, try opening the link in Safari.'
-      : 'Your browser blocked the sound. Turn the volume up and tap a key again.';
-  }
+  // Mark asked for no pop-up text here; just note it for debugging.
+  function soundBlocked() { console.warn('sound may be blocked'); }
   function webTone(midi, when, dur, vol) {
     const t = ctx.currentTime + when + .01;
     const f = 440 * Math.pow(2, (midi - 69) / 12);
