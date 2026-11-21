@@ -411,12 +411,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   // Tell the person on screen when the browser is refusing to play sound.
   const msg = document.getElementById('soundMsg');
   function soundOk() { msg.hidden = true; }
-  function soundBlocked() {
-    msg.hidden = false;
-    msg.textContent = isIOS
-      ? 'No sound? Turn off Silent mode (bell icon in Control Center), turn the volume up, and tap again. If you opened this in the Claude app, try opening the link in Safari.'
-      : 'Your browser blocked the sound. Turn the volume up and tap a key again.';
-  }
+  // Mark asked for no pop-up text here; just note it for debugging.
+  function soundBlocked() { console.warn('sound may be blocked'); }
   function webTone(midi, when, dur, vol) {
     const t = ctx.currentTime + when + .01;
     const f = 440 * Math.pow(2, (midi - 69) / 12);
