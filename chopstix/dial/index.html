@@ -57,6 +57,8 @@ body {
 .meter { display: none; width: 72px; height: 6px; border-radius: 3px; background: var(--seam); overflow: hidden; margin-right: 10px; }
 .meter span { display: block; height: 100%; width: 0%; background: var(--green); transition: width .06s linear; }
 .listening .meter { display: inline-block; }
+.raw { display: none; font-size: 12px; color: var(--ink); margin-right: 10px; min-width: 110px; text-align: right; font-variant-numeric: tabular-nums; }
+.listening .raw { display: inline-block; }
 .mic { display: inline-flex; align-items: center; gap: 8px; margin-right: 8px; }
 .mic .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--seam-dark); transition: background .2s, box-shadow .2s, transform .08s; }
 .mic[aria-pressed="true"] { color: var(--ink-strong); }
@@ -103,6 +105,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     <span class="title">Major scale</span>
     <span id="soundMsg" class="sound-msg" role="status" hidden></span>
     <span class="heard" id="heard" role="status" aria-live="polite"></span>
+    <span class="raw" id="raw" aria-hidden="true"></span>
     <span class="meter" id="meter" aria-hidden="true"><span id="meterFill"></span></span>
     <button id="mic" class="sound mic" aria-pressed="false"><span class="dot"></span>Listen</button>
     <button id="sound" class="sound" aria-pressed="true">Sound on</button>
@@ -503,6 +506,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   const heardEl = document.getElementById('heard');
   const micDot = micBtn.querySelector('.dot');
   const meterFill = document.getElementById('meterFill');
+  const rawEl = document.getElementById('raw');
   micBtn.addEventListener('click', async () => {
     if (mic) { stopMic(); return; }
     if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -617,6 +621,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     if (performance.now() < busyUntil) return; // don't "hear" our own speaker
     if (freq > 0 && rms > 0.0008 && clarity > 0.75) {
       const m = Math.round(69 + 12 * Math.log2(freq / 440));
+      rawEl.textContent = `hearing ${NAMES[((m % 12) + 12) % 12]} · ${Math.round(freq)} Hz`;
       if (m === mic.cand) mic.stable++; else { mic.cand = m; mic.stable = 1; }
       if (mic.stable >= 2 && (mic.armed || m !== mic.last)) {
         mic.last = m;
