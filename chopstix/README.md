@@ -51,3 +51,12 @@ npm test   # music theory (scales, spelling, chords) and pitch detection
 - `src/input.js` – computer keyboard, Web MIDI, microphone pitch detection and chord guessing
 - `src/exercise.js` – the exercise types and scoring
 - `src/lessons/` – lesson content
+
+## Note reader (`read/`)
+
+A large‑print sight reading practice page, built for an iPad held sideways. A very large treble staff shows four
+whole notes at a time; play the highlighted one on the real piano (tap **Listen**) or on the on‑screen keys.
+Right notes turn green and show their letter, wrong ones shake red. After two misses, or when you tap **Help**,
+the letter appears under the note and the matching key glows. **Letters on keys** can be switched off once the
+key names are familiar. Note sets: **C to G** (middle‑C position), **C to C**, and **Whole staff** (middle C up to G).
+Any octave on the piano counts. The clef and notehead shapes come from the Bravura music font (SIL Open Font License).
