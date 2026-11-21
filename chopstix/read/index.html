@@ -178,7 +178,9 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 
 <script>
 (() => {
-  const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+  const SHARP_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+  const FLAT_NAMES = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
+  let NAMES = SHARP_NAMES; // a song in a flat key switches the black keys to flat names
   const NS = 'http://www.w3.org/2000/svg';
   const el = (tag, attrs = {}, parent) => {
     const e = document.createElementNS(NS, tag);
@@ -377,7 +379,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   const SONGS = [
     {
       id: 'o-holy-night', title: 'O Holy Night', by: 'Adolphe Adam', time: [6, 8], eighth: 0.3, // quarter = 100
-      sections: [['A', 0, 1], ['B', 2, 3], ['C', 4, 9], ['D', 10, 11]],
+      sections: [['Section A', 0, 1], ['Section B', 2, 3], ['Section C', 4, 9], ['Section D', 10, 11]],
       lines: [
         'E4 3 O | E4 2 ho- | E4 1 ly | G4 3~ night! | G4 2 | G4 1 The | A4 2 stars | A4 1 are | F4 2 bright- | A4 1 ly | C5 6 shi-',
         'G4 2 ning! | G4 1 It | E4 2 is | D4 1 the | C4 3 night, | r 1 | E4 1 of | F4 1 our | G4 3 dear | F4 2 sav- | D4 1 ior\'s | C4 6 birth. | r 6',
@@ -393,21 +395,74 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
         'G5 6 vine! | F5 3^ O | E5 2 | D5 1 | C5 6~ night, | C5 2 | B4 1 O | C5 2 night | D5 1 di- | C5 6 vine!',
       ],
     },
+    {
+      // F major (B flat in the key signature, so "B4" here is B flat), 4/4, quarter = 80.
+      // One bar per line (two where a bar is mostly rest), so the notes stay big.
+      id: 'danny-boy', title: 'Danny Boy', by: 'Frederic Weatherly', time: [4, 4], key: -1, pickup: 3, eighth: 0.375,
+      sections: [['Verse 1', 0, 7], ['Chorus 1', 8, 15], ['Verse 2', 16, 24], ['Chorus 2', 25, 32]],
+      lines: [
+        'E4 1 Oh | F4 1 Dan- | G4 1 ny | A4 3 Boy, | G4 1 the | A4 1 pipes, | D5 1 the | C5 1 pipes | A4 1 are',
+        'G4 1 call- | F4 1 | D4 2~ ing | D4 1 | F4 1 from | A4 1 glen | G4 1 to',
+        'C5 3 glen, | D5 1 and | C5 1 down | A4 1 the | F4 1 moun- | A4 1 tain',
+        'G4 4~ side, | G4 1 | E4 1 the | F4 1 sum- | G4 1 mer\'s',
+        'A4 3 gone, | G4 1 and | A4 1 all | D5 1 the | C5 1 ro- | A4 1 ses',
+        'G4 1 fall- | F4 1 | D4 2~ ing, | D4 1 | E4 1 It\'s | F4 1 you, | G4 1 it\'s',
+        'A4 3 you | B4 1 must | A4 1 go, | G4 1 and | F4 1 I | G4 1 must',
+        'F4 4~ hide. | F4 1 | C5 1 But | D5 1 come | E5 1 ye',
+        'F5 3 back | E5 1 when | E5 1 sum- | D5 1 mer\'s | C5 1 in | D5 1 the',
+        'C5 1 mea- | A4 1 | F4 2~ dow, | F4 1 | C5 1 or | D5 1 when | E5 1 the',
+        'F5 3 val- | E5 1 ley\'s | E5 1 hushed | D5 1 a | C5 1 white | A4 1 with',
+        'G4 4~ snow, | G4 1 | C5 1 it\'s | C5 1 I\'ll | C5 1 be',
+        'A5 3 here | G5 1 in | G5 1 sun- | F5 1 shine | D5 1 or | F5 1 in',
+        'C5 1 sha- | A4 1 | F4 2~ dow, | F4 1 | E4 1 Oh | F4 1 Dan- | G4 1 ny',
+        'A4 1 Boy, | D5 1 oh, | C5 1 Dan- | A4 1 ny | G4 1 Boy | F4 1 I | D4 1 love | E4 1 you',
+        'F4 4~ so! | F4 1 | r 1 | r 2',
+        'r 8 | r 4 | r 1 | E4 1 But | F4 1 when | G4 1 ye',
+        'A4 3 come, | G4 1 and | A4 1 all | D5 1 the | C5 1 flow\'rs | A4 1 are',
+        'G4 1 dy- | F4 1 | D4 2~ ing, | D4 1 | E4 1 if | F4 1 I | G4 1 am',
+        'A4 3 dead, | B4 1 as | C5 1 dead | A4 1 I | F4 1 well | A4 1 may',
+        'G4 4~ be, | G4 1 | E4 1 Ye\'ll | A4 1 come | F4 1 and',
+        'A4 3 find | G4 1 the | A4 1 place | D5 1 where | C5 1 I | A4 1 am',
+        'G4 1 ly- | F4 1 | D4 2~ ing, | D4 1 | E4 1 and | F4 1 kneel | G4 1 and',
+        'A4 3 say | B4 1 an | A4 1 A- | G4 1 ve | F4 1 there | G4 1 for',
+        'F4 4~ me; | F4 1 | C5 1 And | D5 1 I | E5 1 shall',
+        'F5 3 hear, | E5 1 though | E5 1 soft | D5 1 you | C5 1 tread | D5 1 a-',
+        'C5 1 bove | A4 1 | F4 2~ me, | F4 1 | C5 1 and | D5 1 all | E5 1 my',
+        'F5 3 grave | E5 1 will | E5 1 warm- | D5 1 er, | C5 1 sweet- | A4 1 er',
+        'G4 4~ be, | G4 1 | C5 1 for | C5 1 you | C5 1 will',
+        'A5 3 bend | G5 1 and | G5 1 tell | F5 1 me | D5 1 that | F5 1 you',
+        'C5 1 love | A4 1 | F4 2~ me, | F4 1 | E4 1 and | F4 1 I | G4 1 shall',
+        'A4 1 sleep | D5 1 in | C5 1 peace | A4 1 un- | G4 1 til | F4 1 you | D4 1 come | E4 1 to',
+        'F4 8 me!',
+      ],
+    },
   ];
   // Turn a line's text into measures of events.
-  function parseLine(text, time) {
+  // Key signatures: the order sharps and flats are added, and where each sits on the treble staff.
+  const SHARP_ORDER = [['F', 10], ['C', 7], ['G', 11], ['D', 8], ['A', 5], ['E', 9], ['B', 6]];
+  const FLAT_ORDER = [['B', 6], ['E', 9], ['A', 5], ['D', 8], ['G', 4], ['C', 7], ['F', 3]];
+  const keyAlter = (key, letter) => {
+    if (key > 0) return SHARP_ORDER.slice(0, key).some(([l]) => l === letter) ? 1 : 0;
+    if (key < 0) return FLAT_ORDER.slice(0, -key).some(([l]) => l === letter) ? -1 : 0;
+    return 0;
+  };
+  function parseLine(text, time, key = 0, pickup = 0) {
     const per = time[0] * 8 / time[1]; // eighths per measure
     const events = [];
-    let filled = 0;
+    let filled = pickup ? per - pickup : 0; // a pickup bar starts partway in
     text.split('|').map((t) => t.trim()).filter(Boolean).forEach((tok) => {
       const [p, d, ...rest] = tok.split(' ');
       const beats = parseInt(d, 10);
       const ev = { rest: p === 'r', beats, tie: d.includes('~'), fermata: d.includes('^'), lyric: rest.join(' ') };
       if (!ev.rest) {
-        const m = /^([A-G])(#?)(\d)$/.exec(p);
+        // A note follows the key signature (B4 in F major is B flat) unless it says #, b or n.
+        const m = /^([A-G])([#bn]?)(\d)$/.exec(p);
         ev.s = 7 * (+m[3] - 4) + LETTERS.indexOf(m[1]);
-        ev.sharp = !!m[2];
-        ev.midi = stepMidi(ev.s) + (ev.sharp ? 1 : 0);
+        const inKey = keyAlter(key, m[1]);
+        const alter = m[2] === '#' ? 1 : m[2] === 'b' ? -1 : m[2] === 'n' ? 0 : inKey;
+        ev.acc = m[2] && alter !== inKey ? m[2] : ''; // only print an accidental the key doesn't already give
+        ev.sharp = !!ev.acc; // (kept for spacing: any printed accidental)
+        ev.midi = stepMidi(ev.s) + alter;
       }
       ev.bar = Math.floor(filled / per);
       filled += beats;
@@ -417,13 +472,13 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     events.forEach((ev, i) => { ev.tiedFrom = i > 0 && events[i - 1].tie && !ev.rest; });
     return events;
   }
-  SONGS.forEach((song) => { song.parsed = song.lines.map((l) => parseLine(l, song.time)); });
+  SONGS.forEach((song) => { song.parsed = song.lines.map((l, i) => parseLine(l, song.time, song.key || 0, i === 0 ? song.pickup || 0 : 0)); });
 
   // The parts of a song you can practice: each line, each lettered section, or the whole thing.
   function partsOf(song) {
     const first = (i) => song.parsed[i].filter((e) => e.lyric).slice(0, 5).map((e) => e.lyric).join(' ').replace(/- /g, '');
     const parts = song.parsed.map((_, i) => ({ label: `Line ${i + 1}: ${first(i)}…`, from: i, to: i }));
-    song.sections.forEach(([name, a, b]) => parts.push({ label: `Section ${name} (lines ${a + 1}–${b + 1})`, from: a, to: b }));
+    song.sections.forEach(([name, a, b]) => parts.push({ label: `${name} (lines ${a + 1}–${b + 1})`, from: a, to: b }));
     parts.push({ label: `Whole song (${song.lines.length} lines)`, from: 0, to: song.lines.length - 1 });
     return parts;
   }
@@ -432,11 +487,15 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   const G = {
     black: 'M97 -125C186 -125 295 -43 295 42C295 93 255 125 198 125C88 125 0 44 0 -42C0 -94 43 -125 97 -125Z', half: 'M97 -125C262 -125 295 9 295 42C295 93 254 125 196 125C47 125 0 10 0 -42C0 -95 42 -125 97 -125ZM75 -87C54 -87 42 -76 35 -64C32 -58 29 -51 29 -44C29 5 174 84 221 84C240 84 251 75 258 63C261 57 264 51 264 44C264 1 123 -87 75 -87Z', up: 'M238 -790C238 -790 264 -695 264 -617C264 -492 212 -374 149 -274C98 -195 56 -109 40 -13C37 3 29 9 19 9C8 9 0 6 0 -6V-245C66 -257 161 -393 197 -478C212 -512 221 -569 221 -628C221 -673 214 -720 197 -765C195 -771 194 -776 194 -780C194 -796 204 -805 210 -809C216 -813 233 -807 238 -790Z', down: 'M240 760C254 718 261 668 261 623C261 564 236 480 221 446C184 362 134 281 0 236V1C0 -9 8 -14 16 -14C25 -14 38 -8 40 8C57 103 131 190 182 269C245 368 306 487 306 612C306 690 286 761 278 793C275 804 269 808 262 808C247 808 230 789 240 760Z',
     rq: 'M78 -38C94 -58 108 -77 121 -98C123 -102 127 -110 127 -112C127 -113 127 -115 126 -116C124 -120 120 -121 115 -121C111 -121 103 -119 99 -118C98 -118 96 -118 95 -118L87 -115C35 -115 1 -162 1 -211C1 -261 44 -310 117 -366C125 -372 135 -375 143 -375C150 -375 157 -373 158 -369C159 -366 160 -364 160 -362C160 -353 152 -345 144 -338C131 -338 120 -311 118 -302C115 -294 114 -285 114 -276C114 -235 135 -203 177 -203C206 -203 239 -214 256 -220L257 -221C261 -222 263 -222 265 -222C268 -222 270 -221 270 -218C270 -206 244 -173 233 -161C195 -115 164 -78 164 -22C164 -21 164 -20 164 -19L165 -12C165 -11 165 -10 165 -9C169 49 205 97 231 138C234 143 235 148 235 153C235 163 231 172 231 172C231 172 83 348 66 365C61 370 54 373 48 373C38 373 28 366 28 352C28 347 29 342 32 336C36 325 93 274 93 202C93 165 78 122 33 75C23 65 19 54 19 46C19 32 29 22 29 22Z', r8: 'M134 107C134 144 104 174 67 174C30 174 0 144 0 107C0 86 12 68 27 56C43 45 62 39 81 39C95 39 109 42 120 46C134 50 143 54 156 61C158 62 160 62 161 62C165 62 166 58 166 53C166 50 166 46 165 42C162 27 90 -172 72 -238C72 -250 95 -251 101 -251C112 -251 126 -249 136 -241C139 -239 237 112 237 112C241 130 246 146 247 151C247 161 237 166 235 167C233 167 230 167 224 163C217 157 167 97 134 97Z', rw: 'M282 -109V-17C282 -2 270 9 256 9H26C11 9 0 -2 0 -17V-109C0 -123 11 -135 26 -135H256C270 -135 282 -123 282 -109Z', dot: 'M100 0C100 28 78 50 50 50C22 50 0 28 0 0C0 -28 22 -50 50 -50C78 -50 100 -28 100 0Z',
+    flat: 'M12 -170C15 -174 18 -175 21 -175C24 -175 27 -173 27 -173C57 -156 81 -129 106 -112C195 -50 226 11 226 57C226 114 182 150 136 153C119 153 95 145 81 136C75 131 64 122 59 122C57 122 56 122 54 123C47 126 43 133 43 140C44 162 50 402 50 422C50 433 41 439 31 439C17 439 1 429 0 411C0 411 4 -160 12 -170ZM47 -81C47 -81 44 -21 44 19C44 35 45 47 46 51C53 71 93 100 116 100C145 100 157 67 157 42C157 -12 111 -66 68 -93C64 -95 61 -96 58 -96C49 -96 47 -86 47 -81Z', natural: 'M141 181C139 181 138 180 137 180C137 180 73 157 47 157C41 157 37 158 37 162V329C37 336 31 341 25 341H12C5 341 0 336 0 329V-186C0 -192 3 -195 9 -195L11 -194C12 -194 14 -194 15 -193C29 -187 85 -163 114 -163C124 -163 131 -166 131 -174V-323C131 -330 136 -335 143 -335H156C162 -335 168 -330 168 -323V179C168 184 164 187 160 187C159 187 157 187 156 186ZM37 39C37 53 98 79 122 79C128 79 131 78 131 74V-29C131 -47 74 -70 49 -70C42 -70 37 -68 37 -64Z', rh: 'M282 24V116C282 131 270 142 256 142H26C11 142 0 131 0 116V24C0 10 11 -2 26 -2H256C270 -2 282 10 282 24Z',
+    t2: 'M421 -91C421 -79 416 -77 409 -77C401 -77 398 -81 396 -88L395 -89C385 -114 377 -133 356 -133C351 -133 346 -132 339 -130C326 -125 319 -124 309 -119C289 -111 242 -95 201 -95C188 -95 175 -97 164 -101C186 -65 271 -35 293 -29C363 -10 426 19 426 102C426 208 322 254 229 254C159 254 97 248 48 191C31 170 20 145 20 118C20 104 23 90 29 75C44 44 75 20 111 20C172 20 181 83 181 108C181 168 112 171 112 191C114 205 132 229 191 229C280 229 281 162 281 133C281 42 206 -27 134 -71C79 -106 40 -155 23 -220L22 -223C22 -236 33 -257 48 -257C70 -257 82 -196 141 -196C181 -196 196 -250 285 -250C328 -250 405 -246 421 -91Z', t3: 'M213 248C212 248 211 248 209 248L202 249C201 249 199 249 198 249C112 249 26 192 26 139C26 106 45 62 107 58H112C156 58 178 90 178 123V131C175 168 150 170 145 172C140 174 125 172 125 186V190C127 207 158 215 167 215C252 215 260 162 260 138V131C260 57 201 28 138 25C128 24 114 19 114 8C114 -4 131 -4 139 -4C254 -4 263 -82 263 -95C263 -201 209 -213 187 -213C183 -213 179 -212 178 -212C170 -211 151 -211 150 -196V-191C150 -169 172 -154 173 -125C173 -83 144 -53 101 -53C97 -53 94 -53 90 -54C73 -57 54 -67 42 -80C25 -95 20 -119 20 -141C22 -219 93 -249 191 -251H200C299 -251 401 -200 401 -112V-105C399 -76 392 -57 373 -35C367 -27 359 -20 349 -14L328 -2L295 7C290 8 287 8 285 12C284 14 284 15 284 17C284 21 285 25 288 26C299 29 310 30 319 35C359 54 380 80 380 126C380 218 255 245 213 248Z', t4: 'M362 -74V140C362 148 361 157 350 157C341 157 336 155 330 148L235 33C231 28 226 22 226 10V-74H91C171 -6 331 221 334 233L335 236C335 245 328 251 320 251C311 251 270 249 252 249C234 249 189 251 181 251C172 251 158 248 158 232C158 108 60 -31 30 -73L24 -81C24 -81 24 -82 24 -82L23 -83C21 -88 20 -92 20 -95C20 -105 28 -112 40 -112H226V-175C226 -202 204 -210 186 -210C170 -210 163 -219 163 -229C163 -239 167 -250 182 -250H395C405 -250 415 -243 415 -229C415 -215 403 -209 393 -209C383 -209 362 -203 362 -171V-112H435C445 -112 450 -105 450 -93C450 -81 446 -74 435 -74Z',
     sharp: 'M237 118C244 121 249 129 249 135V206C249 211 246 214 242 214C240 214 239 214 237 213C237 213 217 205 212 204C205 204 198 209 198 217V339C198 345 192 350 184 350C174 350 168 345 168 339V209C167 199 164 186 155 180C143 173 109 159 92 155C83 155 80 167 80 175V295C80 301 73 306 66 306C56 306 50 301 50 295V160C50 146 44 136 38 133C32 130 12 122 12 122C5 120 0 112 0 106V35C0 29 3 26 9 26L11 27C12 27 27 33 35 37L36 38C44 38 50 28 50 20V-79C50 -90 45 -99 39 -102C33 -104 12 -113 12 -113C5 -115 0 -123 0 -129V-200C0 -206 3 -209 9 -209L11 -208C12 -208 26 -202 35 -199C36 -198 37 -198 38 -198C45 -198 50 -209 50 -214V-337C50 -343 56 -348 63 -348C73 -348 80 -343 80 -337V-198C80 -185 85 -178 90 -176L151 -151C151 -151 152 -151 152 -151L154 -150C163 -150 168 -162 168 -168V-293C168 -299 174 -304 181 -304C192 -304 198 -299 198 -293V-151C198 -143 202 -131 209 -128C216 -125 237 -117 237 -117C244 -114 249 -106 249 -100V-29C249 -24 246 -21 242 -21C240 -21 239 -21 237 -22L211 -32C205 -32 198 -26 198 -14V79C198 86 203 105 211 108ZM168 -45C162 -65 115 -85 92 -85C86 -85 81 -83 80 -80C78 -76 77 -54 77 -30C77 1 78 36 80 44C82 61 128 82 153 82C160 82 166 80 168 76C170 71 172 46 172 19C172 -8 170 -36 168 -45Z', t6: 'M305 83C347 83 385 116 385 159C385 163 385 166 384 170C374 234 296 251 242 251C166 250 95 213 59 145C37 103 20 50 20 3V-1C21 -47 29 -99 51 -139C92 -213 141 -249 225 -249C270 -249 320 -242 356 -213C391 -185 414 -140 414 -95C414 -17 340 50 263 50C231 50 198 38 172 15C170 13 168 13 166 13C160 13 157 21 157 37C160 222 219 227 240 227C260 227 273 222 273 212C273 198 254 186 248 174C243 165 241 155 241 145C241 130 246 115 256 104C263 91 292 83 305 83ZM222 2C254 2 281 -48 281 -110C281 -172 254 -222 222 -222C190 -222 164 -172 164 -110C164 -48 190 2 222 2Z', t8: 'M334 36C370 59 394 92 394 142C394 244 247 259 220 259C104 259 25 206 25 122C25 53 64 16 112 -11C60 -36 20 -69 20 -132C20 -219 110 -259 209 -259C309 -259 416 -216 416 -81C416 -21 381 12 334 36ZM282 59C202 87 117 104 117 167C117 209 174 230 218 230C250 230 335 214 335 144C335 104 315 78 282 59ZM205 -226C138 -226 77 -192 77 -127C77 -87 112 -50 156 -33C229 -65 303 -86 303 -152C303 -192 272 -226 205 -226Z', ferm: 'M302 221C515 221 558 63 568 25C569 22 569 19 570 18C577 4 581 -3 591 -3C600 -3 605 1 605 11C605 14 605 17 604 21C542 327 333 329 304 329C272 329 65 327 4 21C3 17 3 13 3 10C3 0 8 -3 16 -3C25 -3 30 4 36 18C37 19 38 23 39 27C51 68 96 221 302 221ZM358 52C358 81 333 106 303 106C274 106 249 81 249 52C249 22 274 -3 303 -3C333 -3 358 22 358 52Z',
   };
   const glyph = (g, d, x, y, cls) => el('path', { d, class: cls || 'ink', transform: `translate(${x} ${y}) scale(${FS} ${-FS})` }, g);
   const HEAD = 295 * FS, STEM = .12 * SP, STEM_LEN = 3.5 * SP;
-  const timeDigit = (n) => (n === 6 ? G.t6 : G.t8);
+  const timeDigit = (n) => ({ 2: G.t2, 3: G.t3, 4: G.t4, 6: G.t6, 8: G.t8 })[n];
+  const accGlyph = (a) => (a === '#' ? G.sharp : a === 'b' ? G.flat : G.natural);
+  const keyWidth = (key) => Math.abs(key) * SP * .95 + (key ? SP * .4 : 0);
 
   // Draw the current line of the song on the big staff, in real note values.
   function drawSong() {
@@ -453,12 +512,12 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     view = { top: vTop, bottom: vBottom };
 
     // horizontal layout: room for each note grows with its length, and with its lyric
-    const start = 64 + 671 * FS + 28 + 420 * FS + 40;
+    const start = 64 + 671 * FS + 28 + keyWidth(song.key || 0) + 420 * FS + 40;
     const xs = [];
     let x = start;
     events.forEach((e) => {
       const lyricW = e.lyric ? e.lyric.length * 19 + 26 : 0;
-      const w = Math.max(HEAD + SP * .9 + e.beats * SP * .42 + (e.sharp ? SP : 0), lyricW);
+      const w = Math.max(HEAD + SP * .6 + Math.sqrt(e.beats) * SP * .55 + (e.sharp ? SP : 0), lyricW);
       xs.push({ x: x + (e.sharp ? SP : 0), w });
       x += w + (e.endsBar ? SP * .7 : 0);
     });
@@ -472,7 +531,12 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     for (let i = 0; i < 5; i++) el('line', { class: 'line', x1: 30, x2: VW - 30, y1: top + i * SP, y2: top + i * SP }, staff);
     el('line', { class: 'line', x1: 30, x2: 30, y1: top, y2: bottom }, staff);
     glyph(staff, G_CLEF, 64, yOf('treble', 4), 'clef');
-    const tx = 64 + 671 * FS + 28;
+    // key signature, then time signature
+    const k = song.key || 0;
+    (k > 0 ? SHARP_ORDER : FLAT_ORDER).slice(0, Math.abs(k)).forEach(([, s], i) => {
+      glyph(staff, k > 0 ? G.sharp : G.flat, 64 + 671 * FS + 24 + i * SP * .95, yOf('treble', s), 'clef');
+    });
+    const tx = 64 + 671 * FS + 28 + keyWidth(k);
     glyph(staff, timeDigit(song.time[0]), tx, SP, 'clef');
     glyph(staff, timeDigit(song.time[1]), tx, 3 * SP, 'clef');
     notesG = el('g', {}, staff);
@@ -485,32 +549,34 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       const playable = !e.rest && !e.tiedFrom;
       if (playable) el('rect', { class: 'spot', x: nx - SP * .45, y: vTop + 10, width: HEAD + SP * .9, height: vBottom - vTop - 20, rx: 16 }, g);
       if (e.rest) {
-        if (e.beats === 6) glyph(g, G.rw, nx, yOf('treble', 8), 'head');
+        const per = song.time[0] * 8 / song.time[1];
+        if (e.beats === per) glyph(g, G.rw, nx, yOf('treble', 8), 'head'); // a whole bar's rest
+        else if (e.beats >= 4) glyph(g, G.rh, nx, mid, 'head');
         else glyph(g, e.beats === 1 ? G.r8 : G.rq, nx, mid, 'head');
-        if (e.beats === 3) glyph(g, G.dot, nx + 300 * FS + SP * .25, mid - SP / 2, 'head');
+        if (e.beats === 3 || e.beats === 6 && e.beats !== per) glyph(g, G.dot, nx + 300 * FS + SP * .25, mid - SP / 2, 'head');
       } else {
         const y = yOf('treble', e.s);
         ledgers(g, 'treble', e.s, nx + HEAD / 2);
         g.querySelectorAll('.ledger').forEach((l) => { l.setAttribute('x1', nx - SP * .4); l.setAttribute('x2', nx + HEAD + SP * .4); });
-        if (e.sharp) glyph(g, G.sharp, nx - SP * .35 - 249 * FS, y, 'head');
-        const hollow = e.beats >= 4;
-        glyph(g, hollow ? G.half : G.black, nx, y, 'head');
+        if (e.acc) glyph(g, accGlyph(e.acc), nx - SP * .35 - 249 * FS, y, 'head');
+        const whole = e.beats >= 8, hollow = e.beats >= 4;
+        glyph(g, whole ? WHOLE : hollow ? G.half : G.black, whole ? nx - 63 * FS : nx, y, 'head');
         const down = e.s >= 6; // on or above the middle line: stem goes down
-        if (down) {
+        if (whole) { /* no stem */ } else if (down) {
           el('rect', { class: 'stem', x: nx, y: y + .168 * SP, width: STEM, height: STEM_LEN - .168 * SP }, g);
           if (e.beats === 1) glyph(g, G.down, nx, y + STEM_LEN, 'head');
         } else {
           el('rect', { class: 'stem', x: nx + HEAD - STEM, y: y - STEM_LEN, width: STEM, height: STEM_LEN - .168 * SP }, g);
           if (e.beats === 1) glyph(g, G.up, nx + HEAD - STEM, y - STEM_LEN, 'head');
         }
-        if (e.beats === 3 || e.beats === 6) glyph(g, G.dot, nx + HEAD + SP * .3, y - (mod7(e.s - 2) % 2 === 0 ? SP / 2 : 0), 'head');
+        if ([3, 6, 12].includes(e.beats)) glyph(g, G.dot, nx + HEAD + SP * .3, y - (mod7(e.s - 2) % 2 === 0 ? SP / 2 : 0), 'head');
         if (e.fermata) glyph(g, G.ferm, nx + HEAD / 2 - 302 * FS, Math.min(top, y) - SP * .9, 'head');
         e.down = down;
       }
       if (e.lyric) { const t = el('text', { class: 'lyric', x: nx + HEAD / 2, y: lyricY }, g); t.textContent = e.lyric; }
       if (playable) {
         const t = el('text', { class: 'name', x: nx + HEAD / 2, y: hintY }, g);
-        t.textContent = e.s === 0 && !e.sharp ? 'Middle C' : NAMES[e.midi % 12];
+        t.textContent = e.midi === 60 ? 'Middle C' : NAMES[e.midi % 12];
         if (t.textContent.length > 2) t.classList.add('small');
         el('rect', { x: nx - SP * .45, y: vTop, width: HEAD + SP * .9, height: vBottom - vTop, fill: 'transparent' }, g);
         const n = { s: e.s, midi: e.midi, g, label: t.textContent };
@@ -671,6 +737,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   const rangeBtns = [...document.querySelectorAll('#ranges button')];
   function setup() {
     document.body.classList.toggle('songmode', !!song);
+    NAMES = song && song.key < 0 ? FLAT_NAMES : SHARP_NAMES;
     document.getElementById('partPick').hidden = !song;
     document.getElementById('hear').hidden = !song;
     document.getElementById('songNav').hidden = !song;
