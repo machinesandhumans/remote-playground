@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <title>Chopstix Note Reader</title>
 <style>
-/* Big-print sight reading: a large staff on top, the piano keys right below it. Same look as the scale dial. */
+/* Big-print sight reading: a large staff (treble, bass or both) on top, the piano keys right below it. Same look as the scale dial. */
 :root {
   --surface: #f3f3f1;
   --panel: #fbfbfa;
@@ -40,10 +40,10 @@ body {
 .stage {
   height: 100%; max-width: 1280px; margin: 0 auto;
   padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
-  display: grid; grid-template-rows: auto minmax(0, 56fr) auto minmax(0, 40fr); gap: 1.6vh;
+  display: grid; grid-template-rows: auto minmax(0, 62fr) auto minmax(0, 34fr); gap: 1.4vh;
   justify-items: center;
 }
-.topline { width: 100%; display: flex; align-items: center; gap: 10px; }
+.topline { width: 100%; display: flex; align-items: center; gap: 8px; }
 .title { font-size: 14px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink); font-weight: 600; margin-right: auto; }
 .sound {
   font: inherit; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink);
@@ -67,7 +67,8 @@ body {
 .sound-msg { display: none; }
 
 /* the line under the staff: what was heard, plus the streak */
-.status { width: 100%; display: flex; justify-content: space-between; align-items: baseline; min-height: 30px; font-size: 22px; }
+.status { width: 100%; display: flex; align-items: center; gap: 14px; min-height: 30px; font-size: 22px; }
+.heard { margin-right: auto; }
 .heard b { font-weight: 700; }
 .heard .yes { color: var(--green); }
 .heard .no { color: var(--red); }
@@ -76,6 +77,7 @@ body {
 .streak b { color: var(--ink-strong); font-size: 20px; letter-spacing: 0; margin-left: 6px; }
 
 svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; width: auto; height: 100%; }
+#staff { width: 100%; }
 .staff-wrap, .keys-wrap { width: 100%; min-height: 0; display: flex; justify-content: center; align-items: center; }
 .paper { fill: #fff; stroke: var(--seam); }
 .line { stroke: var(--staff); stroke-width: 3.2; stroke-linecap: round; }
@@ -83,6 +85,9 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 .note { cursor: pointer; transition: opacity .25s; }
 .note .head { fill: var(--staff); transition: fill .2s; }
 .note .ledger { stroke: var(--staff); stroke-width: 3.2; stroke-linecap: round; }
+.note .octave { font-family: var(--font); font-style: italic; font-weight: 700; font-size: 34px; text-anchor: middle; fill: var(--staff); }
+.note.done .octave { fill: var(--green); }
+.mid-c { font-family: var(--font); font-size: 15px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; fill: var(--ink-strong); text-anchor: middle; }
 .note .name { font-family: var(--font); font-weight: 700; font-size: 46px; text-anchor: middle; fill: var(--green); opacity: 0; transition: opacity .25s; }
 .note .spot { fill: var(--green); opacity: 0; transition: opacity .25s; }
 .note.later { opacity: .28; }
@@ -117,31 +122,36 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 <main class="stage">
   <div class="topline">
     <span class="title">Read the note</span>
-    <span class="seg" id="levels" role="group" aria-label="Notes to practice">
-      <button data-level="0" aria-pressed="true">C to G</button>
-      <button data-level="1" aria-pressed="false">C to C</button>
-      <button data-level="2" aria-pressed="false">Whole staff</button>
+    <span class="seg" id="clefs" role="group" aria-label="Clef">
+      <button data-v="treble">Treble</button>
+      <button data-v="bass">Bass</button>
+      <button data-v="both">Both</button>
+    </span>
+    <span class="seg" id="ranges" role="group" aria-label="How much of the piano">
+      <button data-v="2">2 octaves</button>
+      <button data-v="4">4 octaves</button>
+      <button data-v="all">All 88 keys</button>
     </span>
     <button id="help" class="sound">Help</button>
-    <button id="letters" class="sound" aria-pressed="true">Letters on keys</button>
-    <label class="sens">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>
-    <span class="meter" id="meter" aria-hidden="true"><span id="meterFill"></span></span>
+    <button id="letters" class="sound" aria-pressed="true">Letters</button>
     <button id="mic" class="sound mic" aria-pressed="false"><span class="dot"></span>Listen</button>
     <button id="sound" class="sound" aria-pressed="true">Sound on</button>
     <span id="soundMsg" class="sound-msg" role="status" hidden></span>
   </div>
 
   <div class="staff-wrap">
-    <svg id="staff" viewBox="0 -30 1200 480" role="img" aria-label="Music staff"></svg>
+    <svg id="staff" viewBox="0 0 1200 480" role="img" aria-label="Music staff"></svg>
   </div>
 
   <div class="status">
     <span class="heard" id="heard" role="status" aria-live="polite"></span>
+    <label class="sens">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+    <span class="meter" id="meter" aria-hidden="true"><span id="meterFill"></span></span>
     <span class="streak">In a row<b id="streak">0</b></span>
   </div>
 
   <div class="keys-wrap">
-    <svg id="keys" viewBox="0 0 1200 330" role="img" aria-label="Piano keys"></svg>
+    <svg id="keys" viewBox="0 0 1200 350" role="img" aria-label="Piano keys"></svg>
   </div>
 </main>
 
@@ -159,60 +169,133 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   // ---------- Staff ----------
   // Glyphs from the Bravura music font (SIL Open Font License), in font units: 250 units = one staff space.
   const G_CLEF = 'M376 415C374 427 376 428 382 434C490 535 572 662 572 815C572 902 548 988 507 1048C492 1070 466 1098 455 1098C441 1098 410 1072 390 1050C316 968 292 843 292 739C292 681 299 616 306 575C308 563 309 561 297 551C153 432 0 289 0 87C0 -87 119 -252 364 -252C387 -252 413 -250 433 -246C444 -244 446 -243 448 -255C460 -322 475 -409 475 -456C475 -604 375 -622 316 -622C262 -622 236 -606 236 -593C236 -586 245 -583 268 -576C299 -567 335 -540 335 -482C335 -427 300 -380 239 -380C172 -380 132 -433 132 -495C132 -560 171 -658 322 -658C389 -658 519 -628 519 -458C519 -401 501 -306 490 -244C488 -232 489 -233 503 -227C604 -187 671 -102 671 11C671 139 577 252 430 252C404 252 404 252 401 270ZM470 943C503 943 530 916 530 861C530 750 435 660 356 591C349 585 345 586 343 599C339 625 337 659 337 691C337 847 409 943 470 943ZM361 262C364 243 364 244 346 238C258 208 201 129 201 44C201 -46 248 -110 316 -133C324 -136 336 -139 343 -139C351 -139 355 -134 355 -128C355 -121 347 -118 340 -115C298 -97 268 -54 268 -8C268 49 307 92 368 109C384 113 386 112 388 101L438 -197C440 -208 439 -208 424 -211C408 -214 388 -216 368 -216C193 -216 80 -119 80 20C80 79 90 158 173 252C233 319 279 356 326 394C336 402 338 401 340 390ZM430 103C428 115 429 118 441 117C522 110 589 42 589 -46C589 -109 551 -160 495 -188C483 -194 481 -194 479 -182Z';
+  const F_CLEF = 'M252 262C78 262 0 135 0 39C0 -41 42 -110 123 -110C186 -110 229 -66 229 -4C229 60 182 100 133 100C106 100 96 93 83 93C70 93 67 101 67 111C67 151 127 224 229 224C335 224 381 120 381 -37C381 -316 243 -472 10 -605C1 -610 -5 -615 -5 -623C-5 -629 -1 -635 8 -635C13 -635 19 -633 25 -630C271 -510 531 -332 531 -28C531 146 425 262 252 262ZM629 180C598 180 574 156 574 125C574 94 598 70 629 70C660 70 684 94 684 125C684 156 660 180 629 180ZM630 -71C599 -71 576 -94 576 -125C576 -156 599 -179 630 -179C661 -179 684 -156 684 -125C684 -94 661 -71 630 -71Z';
   const WHOLE = 'M216 125C83 125 0 70 0 2C0 -65 57 -125 206 -125C370 -125 422 -68 422 2C422 73 309 125 216 125ZM111 63C122 98 159 103 190 103C259 103 314 29 314 -31C314 -62 301 -90 268 -98C258 -101 247 -102 237 -102C201 -102 164 -78 143 -50C123 -27 108 7 108 39C108 47 109 55 111 63Z';
   const SP = 64;                 // one staff space in viewBox units (very large on purpose)
-  const TOP = 40;                // y of the top line (F5)
-  const BOTTOM = TOP + 4 * SP;   // y of the bottom line (E4)
   const FS = SP / 250;           // font units -> viewBox units
-  // Notes are counted in white-key steps. 0 = C4 (middle C), 2 = E4 (bottom line) ... 11 = G5.
+  // Notes are counted in white-key steps from middle C: 0 = C4, 1 = D4 ... 7 = C5, -1 = B3, -7 = C3.
   const WHITE_PCS = [0, 2, 4, 5, 7, 9, 11];
   const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-  const stepMidi = (s) => 60 + 12 * Math.floor(s / 7) + WHITE_PCS[((s % 7) + 7) % 7];
-  const stepY = (s) => BOTTOM - (s - 2) * SP / 2;
-  const LEVELS = [[0, 4], [0, 7], [0, 11]]; // C4–G4, C4–C5, C4–G5
-  const SLOTS = [420, 610, 800, 990];
+  const mod7 = (s) => ((s % 7) + 7) % 7;
+  const stepMidi = (s) => 60 + 12 * Math.floor(s / 7) + WHITE_PCS[mod7(s)];
+  const midiName = (m) => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+  // How much of the piano: lowest and highest white-key step.
+  const RANGES = { 2: [-7, 7], 4: [-14, 14], all: [-23, 28] }; // C3–C5, C2–C6, A0–C8
+  let SLOTS = [420, 610, 800, 990], VW = 1200;
+
+  // Treble: top line F5 (step 10). Bass: top line A3 (step -2). In "both", bass sits below treble.
+  const TREBLE_TOP = 0, BASS_TOP_BOTH = 7 * SP;
+  let clef = 'treble', range = '2', lo = -7, hi = 7;
+  const staffTop = (c) => (c === 'bass' ? (clef === 'both' ? BASS_TOP_BOTH : 0) : TREBLE_TOP);
+  function yOf(c, s) { return c === 'treble' ? staffTop(c) + (10 - s) * SP / 2 : staffTop(c) + (-2 - s) * SP / 2; }
+  // Far-off notes are written an octave (or two) nearer, with 8va / 8vb, like real music.
+  function written(c, s) {
+    let d = s, mark = '';
+    if (c === 'treble') { if (d > 16) { d -= 7; mark = '8va'; } if (d > 16) { d -= 7; mark = '15ma'; } }
+    else { if (d < -16) { d += 7; mark = '8vb'; } if (d < -16) { d += 7; mark = '15mb'; } }
+    return { d, mark };
+  }
+  function clefFor(s) {
+    if (clef !== 'both') return clef;
+    if (s > 0) return 'treble';
+    if (s < 0) return 'bass';
+    return Math.random() < .5 ? 'treble' : 'bass'; // middle C: learn it in both places
+  }
+  const allowed = (s) => s >= lo && s <= hi && (clef === 'both' || (clef === 'treble' ? s >= 0 : s <= 0));
 
   const staff = document.getElementById('staff');
-  el('rect', { class: 'paper', x: 0, y: -30, width: 1200, height: 480, rx: 14 }, staff);
-  for (let i = 0; i < 5; i++) el('line', { class: 'line', x1: 30, x2: 1170, y1: TOP + i * SP, y2: TOP + i * SP }, staff);
-  el('line', { class: 'line', x1: 30, x2: 30, y1: TOP, y2: BOTTOM }, staff);
-  el('path', { class: 'clef', d: G_CLEF, transform: `translate(64 ${stepY(4)}) scale(${FS} ${-FS})` }, staff);
-  const notesG = el('g', {}, staff);
+  let notesG = null, view = { top: 0, bottom: 0 };
+  function drawStaff() {
+    staff.textContent = '';
+    const clefs = clef === 'both' ? ['treble', 'bass'] : [clef];
+    // vertical room: staff lines, clefs, and every note that can come up in this mode
+    let top = Infinity, bottom = -Infinity;
+    const grow = (y0, y1) => { top = Math.min(top, y0); bottom = Math.max(bottom, y1); };
+    clefs.forEach((c) => {
+      grow(staffTop(c), staffTop(c) + 4 * SP);
+      if (c === 'treble') grow(yOf(c, 4) - 1098 * FS, yOf(c, 4) + 658 * FS);
+      else grow(yOf(c, -4) - 262 * FS, yOf(c, -4) + 635 * FS);
+    });
+    for (let s = lo; s <= hi; s++) {
+      if (!allowed(s)) continue;
+      clefs.forEach((c) => {
+        if (clef === 'both' && (c === 'treble' ? s < 0 : s > 0)) return;
+        const { d, mark } = written(c, s);
+        const y = yOf(c, d);
+        grow(y - SP / 2 - (mark && c === 'treble' ? SP * 1.3 : 0), y + SP / 2 + (mark && c === 'bass' ? SP * 1.3 : 0));
+      });
+    }
+    top -= 24; bottom += 80; // room for the letter under the notes
+    view = { top, bottom };
+    // Stretch the staff sideways to fill the space, so the notes can be as tall as possible.
+    const box = staff.parentNode.getBoundingClientRect();
+    const aspect = box.width > 0 && box.height > 0 ? box.width / box.height : 2.5;
+    VW = Math.max(900, Math.min(6000, (bottom - top) * aspect));
+    // four notes, spread out but kept close enough to read as one line
+    const first = 380, gap = Math.min(560, (VW - 140 - first) / 3);
+    SLOTS = [0, 1, 2, 3].map((i) => first + i * gap);
+    staff.setAttribute('viewBox', `0 ${top} ${VW} ${bottom - top}`);
+    el('rect', { class: 'paper', x: 0, y: top, width: VW, height: bottom - top, rx: 14 }, staff);
+    clefs.forEach((c) => {
+      const t = staffTop(c);
+      for (let i = 0; i < 5; i++) el('line', { class: 'line', x1: 30, x2: VW - 30, y1: t + i * SP, y2: t + i * SP }, staff);
+      if (c === 'treble') el('path', { class: 'clef', d: G_CLEF, transform: `translate(64 ${yOf(c, 4)}) scale(${FS} ${-FS})` }, staff);
+      else el('path', { class: 'clef', d: F_CLEF, transform: `translate(64 ${yOf(c, -4)}) scale(${FS} ${-FS})` }, staff);
+    });
+    const left = staffTop(clefs[0]), right = staffTop(clefs[clefs.length - 1]) + 4 * SP;
+    el('line', { class: 'line', x1: 30, x2: 30, y1: left, y2: right }, staff);
+    if (clef === 'both') {
+      // brace-like bar joining the grand staff
+      el('rect', { x: 14, y: left, width: 9, height: right - left, rx: 4, fill: 'var(--staff)' }, staff);
+    }
+    notesG = el('g', {}, staff);
+  }
 
-  let level = 0, line = [], at = 0, misses = 0, streak = 0, last = -1, waitTimer = null, busy = false;
-  try { const v = parseInt(localStorage.getItem('read-level'), 10); if (v >= 0 && v < LEVELS.length) level = v; } catch { /* private mode */ }
-
+  let line = [], at = 0, misses = 0, streak = 0, last = null, busy = false;
   function pick() {
-    const [lo, hi] = LEVELS[level];
-    let s;
+    let s, tries = 0;
     do {
       // mostly small steps from the last note, like real beginner music; sometimes a jump
-      s = last >= 0 && Math.random() < .7
+      s = last != null && Math.random() < .7 && tries < 40
         ? last + Math.round((Math.random() * 2 - 1) * 3)
         : lo + Math.floor(Math.random() * (hi - lo + 1));
-    } while (s < lo || s > hi || s === last);
+      tries++;
+    } while (!allowed(s) || (s === last && tries < 200));
     last = s;
     return s;
   }
-  function newLine() {
+  function ledgers(g, c, d, x) {
+    const t = staffTop(c), b = t + 4 * SP;
+    for (let y = t - SP; y >= yOf(c, d) - 1; y -= SP) el('line', { class: 'ledger', x1: x - 76, x2: x + 76, y1: y, y2: y }, g);
+    for (let y = b + SP; y <= yOf(c, d) + 1; y += SP) el('line', { class: 'ledger', x1: x - 76, x2: x + 76, y1: y, y2: y }, g);
+  }
+  function newLine(keep) {
     notesG.textContent = '';
-    line = SLOTS.map((x) => {
-      const s = pick();
-      const y = stepY(s);
+    const old = keep ? line : null;
+    line = SLOTS.map((x, i) => {
+      const s = old ? old[i].s : pick();
+      const c = old ? old[i].c : clefFor(s);
+      const { d, mark } = written(c, s);
+      const y = yOf(c, d);
       const g = el('g', { class: 'note' }, notesG);
-      el('rect', { class: 'spot', x: x - 85, y: -20, width: 170, height: 460, rx: 18 }, g);
-      // ledger lines for notes below or above the staff
-      for (let l = 0; l >= s; l -= 2) el('line', { class: 'ledger', x1: x - 76, x2: x + 76, y1: stepY(l), y2: stepY(l) }, g);
-      for (let l = 12; l <= s; l += 2) el('line', { class: 'ledger', x1: x - 76, x2: x + 76, y1: stepY(l), y2: stepY(l) }, g);
+      el('rect', { class: 'spot', x: x - 85, y: view.top + 12, width: 170, height: view.bottom - view.top - 24, rx: 18 }, g);
+      ledgers(g, c, d, x);
       el('path', { class: 'head', d: WHOLE, transform: `translate(${x - 211 * FS} ${y}) scale(${FS} ${-FS})` }, g);
-      const t = el('text', { class: 'name', x, y: 428 }, g);
-      t.textContent = LETTERS[((s % 7) + 7) % 7];
-      el('rect', { x: x - 85, y: -20, width: 170, height: 460, fill: 'transparent' }, g); // easy to tap
-      const n = { s, midi: stepMidi(s), g };
+      if (mark) {
+        const o = el('text', { class: 'octave', x, y: c === 'treble' ? y - SP * 1.05 : y + SP * 1.45 }, g);
+        o.textContent = mark;
+      }
+      const t = el('text', { class: 'name', x, y: view.bottom - 36 }, g);
+      t.textContent = LETTERS[mod7(s)];
+      if (s === 0) { const m = el('text', { class: 'mid-c name', x, y: view.bottom - 12 }, g); m.textContent = 'Middle C'; }
+      el('rect', { x: x - 85, y: view.top, width: 170, height: view.bottom - view.top, fill: 'transparent' }, g); // easy to tap
+      const n = { s, c, midi: stepMidi(s), g };
       g.addEventListener('pointerdown', () => tone(n.midi));
       return n;
     });
-    at = 0;
+    if (old) {
+      old.forEach((o, i) => { if (o.g.classList.contains('done')) line[i].g.classList.add('done'); });
+    } else at = 0;
     showCurrent();
   }
   function showCurrent() {
@@ -232,16 +315,16 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     if (k) k.g.classList.add('target');
   }
 
-  // Judge a note that was played (on the piano or on screen). Any octave counts.
+  // Judge a note that was played (on the piano or on screen). It has to be the exact key:
+  // middle C only counts as middle C.
   function judge(midi) {
     const n = line[at];
     if (!n || busy) return;
-    const pc = ((midi % 12) + 12) % 12;
-    const ok = pc === n.midi % 12;
-    lightKey(midi, ok, n);
+    const ok = midi === n.midi;
+    lightKey(midi, ok);
     if (ok) {
       streak++;
-      heardEl.innerHTML = `<b class="yes">${LETTERS[((n.s % 7) + 7) % 7]}</b>, that's right`;
+      heardEl.innerHTML = `<b class="yes">${n.s === 0 ? 'Middle C' : LETTERS[mod7(n.s)]}</b>, that's right`;
       n.g.classList.remove('miss', 'now');
       n.g.classList.add('done');
       busy = true;
@@ -253,7 +336,13 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     } else {
       streak = 0;
       misses++;
-      heardEl.innerHTML = `That was <b class="no">${NAMES[pc]}</b>. Try again`;
+      const pc = ((midi % 12) + 12) % 12;
+      if (pc === n.midi % 12) {
+        const oct = Math.round((n.midi - midi) / 12);
+        heardEl.innerHTML = `Right letter, wrong <b class="no">${NAMES[pc]}</b>. Go ${Math.abs(oct) === 1 ? 'one octave' : Math.abs(oct) + ' octaves'} ${oct > 0 ? 'higher' : 'lower'}`;
+      } else {
+        heardEl.innerHTML = `That was <b class="no">${NAMES[pc]}</b>. Try again`;
+      }
       n.g.classList.add('miss');
       n.g.classList.remove('shake'); void n.g.getBBox(); n.g.classList.add('shake');
       setTimeout(() => n.g.classList.remove('miss', 'shake'), 500);
@@ -262,74 +351,105 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     document.getElementById('streak').textContent = streak;
   }
 
-  // ---------- Keyboard: C4 … B5 ----------
+  // ---------- Keyboard: the same stretch of the piano as the notes ----------
   const keysSvg = document.getElementById('keys');
-  const PX = 20, PY = 14, NW = 14, W = 1160 / NW, H = 300, BW = 52, BH = 185;
-  const keyEls = []; // {midi, g}
-  const defs = el('defs', {}, keysSvg);
-  const clip = el('clipPath', { id: 'bed' }, defs);
-  el('rect', { x: PX - 1, y: PY - 1, width: W * NW + 2, height: H + 2, rx: 3 }, clip);
-  const bed = el('g', { 'clip-path': 'url(#bed)' }, keysSvg);
-  const wg = el('linearGradient', { id: 'whiteKey', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-  el('stop', { offset: 0, 'stop-color': '#f2f2f0' }, wg); el('stop', { offset: .12, 'stop-color': '#ffffff' }, wg); el('stop', { offset: 1, 'stop-color': '#fafaf9' }, wg);
-  const bg = el('linearGradient', { id: 'blackKey', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-  el('stop', { offset: 0, 'stop-color': '#1f1f21' }, bg); el('stop', { offset: 1, 'stop-color': '#3a3a3d' }, bg);
-  const pg = el('linearGradient', { id: 'pressShade', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-  el('stop', { offset: 0, 'stop-color': '#000', 'stop-opacity': .22 }, pg); el('stop', { offset: .18, 'stop-color': '#000', 'stop-opacity': .06 }, pg); el('stop', { offset: .4, 'stop-color': '#000', 'stop-opacity': 0 }, pg);
-
-  function label(g, cx, cy, text, dark) {
-    el('circle', { class: 'ring', cx, cy, r: 17, fill: dark ? '#2f2f32' : '#fbfbfa', stroke: dark ? '#4a4a4e' : '#d6d6d1', 'stroke-width': 1.5 }, g);
-    const t = el('text', { class: 'lbl', x: cx, y: cy + 1, 'font-size': text.length > 1 ? 14 : 17, fill: dark ? '#8d8d92' : 'var(--ink)' }, g);
-    t.textContent = text;
-  }
-  for (let i = 0; i < NW; i++) {
-    const m = stepMidi(i);
-    const g = el('g', { class: 'key', 'data-midi': m }, bed);
-    const x = PX + i * W;
-    el('rect', { x, y: PY, width: W, height: H, rx: 3, fill: 'url(#whiteKey)' }, g);
-    el('rect', { class: 'hitfill', x, y: PY, width: W, height: H, rx: 3, fill: 'transparent' }, g);
-    el('rect', { class: 'press', x, y: PY, width: W, height: H, rx: 3, fill: 'url(#pressShade)' }, g);
-    el('rect', { x, y: PY, width: W, height: H, rx: 3, fill: 'none', stroke: '#8e8e89', 'stroke-width': 1, 'vector-effect': 'non-scaling-stroke' }, g);
-    el('rect', { class: 'aim', x: x + 4, y: PY + 4, width: W - 8, height: H - 8, rx: 6 }, g);
-    label(g, x + W / 2, PY + H - 40, NAMES[m % 12], false);
-    keyEls.push({ midi: m, g });
-  }
-  for (let i = 0; i < NW; i++) {
-    const m = stepMidi(i);
-    if ([4, 11].includes(m % 12)) continue; // no black key after E or B
-    const g = el('g', { class: 'key black', 'data-midi': m + 1 }, bed);
-    const cx = PX + (i + 1) * W;
-    el('rect', { x: cx - BW / 2 - 1, y: PY, width: BW + 2, height: BH + 3, rx: 5, fill: '#000', opacity: .1 }, g);
-    el('rect', { x: cx - BW / 2, y: PY, width: BW, height: BH, rx: 5, fill: 'url(#blackKey)', stroke: '#141416' }, g);
-    el('rect', { class: 'hitfill', x: cx - BW / 2, y: PY, width: BW, height: BH, rx: 5, fill: 'transparent' }, g);
-    el('rect', { class: 'press', x: cx - BW / 2, y: PY, width: BW, height: BH, rx: 5, fill: 'url(#pressShade)' }, g);
-    label(g, cx, PY + BH - 30, NAMES[(m + 1) % 12], true);
-    keyEls.push({ midi: m + 1, g });
+  const PX = 20, PY = 14, H = 300;
+  let keyEls = []; // {midi, g}
+  function key(midi, ev) { tone(midi); judge(midi); }
+  function drawKeys() {
+    keysSvg.textContent = '';
+    keyEls = [];
+    const NW = hi - lo + 1, W = 1160 / NW, BW = W * .62, BH = 185;
+    const r = Math.min(17, W * .36), labelAll = W >= 40;
+    const defs = el('defs', {}, keysSvg);
+    const clip = el('clipPath', { id: 'bed' }, defs);
+    el('rect', { x: PX - 1, y: PY - 1, width: W * NW + 2, height: H + 2, rx: 3 }, clip);
+    const bed = el('g', { 'clip-path': 'url(#bed)' }, keysSvg);
+    const wg = el('linearGradient', { id: 'whiteKey', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+    el('stop', { offset: 0, 'stop-color': '#f2f2f0' }, wg); el('stop', { offset: .12, 'stop-color': '#ffffff' }, wg); el('stop', { offset: 1, 'stop-color': '#fafaf9' }, wg);
+    const bg = el('linearGradient', { id: 'blackKey', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+    el('stop', { offset: 0, 'stop-color': '#1f1f21' }, bg); el('stop', { offset: 1, 'stop-color': '#3a3a3d' }, bg);
+    const pg = el('linearGradient', { id: 'pressShade', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+    el('stop', { offset: 0, 'stop-color': '#000', 'stop-opacity': .22 }, pg); el('stop', { offset: .18, 'stop-color': '#000', 'stop-opacity': .06 }, pg); el('stop', { offset: .4, 'stop-color': '#000', 'stop-opacity': 0 }, pg);
+    function label(g, cx, cy, text, dark) {
+      el('circle', { class: 'ring', cx, cy, r, fill: dark ? '#2f2f32' : '#fbfbfa', stroke: dark ? '#4a4a4e' : '#d6d6d1', 'stroke-width': 1.5 }, g);
+      const t = el('text', { class: 'lbl', x: cx, y: cy + 1, 'font-size': r * (text.length > 1 ? .82 : 1), fill: dark ? '#8d8d92' : 'var(--ink)' }, g);
+      t.textContent = text;
+    }
+    for (let s = lo; s <= hi; s++) {
+      const i = s - lo, m = stepMidi(s);
+      const g = el('g', { class: 'key', 'data-midi': m }, bed);
+      const x = PX + i * W;
+      el('rect', { x, y: PY, width: W, height: H, rx: 3, fill: 'url(#whiteKey)' }, g);
+      el('rect', { class: 'hitfill', x, y: PY, width: W, height: H, rx: 3, fill: 'transparent' }, g);
+      el('rect', { class: 'press', x, y: PY, width: W, height: H, rx: 3, fill: 'url(#pressShade)' }, g);
+      el('rect', { x, y: PY, width: W, height: H, rx: 3, fill: 'none', stroke: '#8e8e89', 'stroke-width': 1, 'vector-effect': 'non-scaling-stroke' }, g);
+      el('rect', { class: 'aim', x: x + 3, y: PY + 3, width: W - 6, height: H - 6, rx: 5, 'stroke-width': Math.min(6, W / 7) }, g);
+      if (labelAll || mod7(s) === 0) label(g, x + W / 2, PY + H - r - 22, LETTERS[mod7(s)], false);
+      keyEls.push({ midi: m, g });
+      if (s === 0) { // middle C gets a name tag under the keyboard
+        const t = el('text', { class: 'mid-c', x: x + W / 2, y: PY + H + 26 }, keysSvg);
+        t.textContent = 'Middle C';
+        el('path', { d: `M ${x + W / 2 - 7} ${PY + H + 10} l 7 -7 l 7 7 z`, fill: 'var(--ink-strong)' }, keysSvg);
+      }
+    }
+    for (let s = lo; s < hi; s++) {
+      if ([2, 6].includes(mod7(s))) continue; // no black key after E or B
+      const m = stepMidi(s) + 1;
+      const g = el('g', { class: 'key black', 'data-midi': m }, bed);
+      const cx = PX + (s - lo + 1) * W;
+      el('rect', { x: cx - BW / 2 - 1, y: PY, width: BW + 2, height: BH + 3, rx: Math.min(5, BW / 6), fill: '#000', opacity: .1 }, g);
+      el('rect', { x: cx - BW / 2, y: PY, width: BW, height: BH, rx: Math.min(5, BW / 6), fill: 'url(#blackKey)', stroke: '#141416' }, g);
+      el('rect', { class: 'hitfill', x: cx - BW / 2, y: PY, width: BW, height: BH, rx: Math.min(5, BW / 6), fill: 'transparent' }, g);
+      el('rect', { class: 'press', x: cx - BW / 2, y: PY, width: BW, height: BH, rx: Math.min(5, BW / 6), fill: 'url(#pressShade)' }, g);
+      if (labelAll) label(g, cx, PY + BH - r - 14, NAMES[m % 12], true);
+      keyEls.push({ midi: m, g });
+    }
+    keyEls.forEach(({ midi, g }) => {
+      g.addEventListener('pointerdown', (ev) => { ev.preventDefault(); key(midi); g.classList.add('pressed'); });
+      const up = () => { g.classList.remove('pressed'); };
+      g.addEventListener('pointerup', up);
+      g.addEventListener('pointerleave', up);
+      g.addEventListener('pointercancel', up);
+    });
   }
   let hitTimer = null;
-  function lightKey(midi, ok, n) {
-    // light the key that was played; for a piano in another octave, light the one on the staff's octave
-    const pc = ((midi % 12) + 12) % 12;
-    const k = keyEls.find((x) => x.midi === midi)
-      || (ok && keyEls.find((x) => x.midi === n.midi))
-      || keyEls.find((x) => x.midi % 12 === pc && x.midi >= 60 && x.midi <= 71);
+  function lightKey(midi, ok) {
     keyEls.forEach((x) => x.g.classList.remove('hit-in', 'hit-out'));
     clearTimeout(hitTimer);
+    const k = keyEls.find((x) => x.midi === midi);
     if (!k) return;
     k.g.classList.add(ok ? 'hit-in' : 'hit-out');
     hitTimer = setTimeout(() => k.g.classList.remove('hit-in', 'hit-out'), 900);
   }
 
   // ---------- Buttons ----------
-  const levelBtns = [...document.querySelectorAll('#levels button')];
-  function setLevel(v) {
-    level = v;
-    levelBtns.forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.level === v)));
-    try { localStorage.setItem('read-level', String(v)); } catch { /* private mode */ }
-    last = -1;
+  let pitchFloor = 60; // lowest pitch (Hz) the listener looks for; set from the range
+  const clefBtns = [...document.querySelectorAll('#clefs button')];
+  const rangeBtns = [...document.querySelectorAll('#ranges button')];
+  function setup() {
+    [lo, hi] = RANGES[range];
+    clefBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === clef)));
+    rangeBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === range)));
+    try { localStorage.setItem('read-clef', clef); localStorage.setItem('read-range', range); } catch { /* private mode */ }
+    pitchFloor = 440 * Math.pow(2, (stepMidi(lo) - 69) / 12) / 2.1; // an octave below the lowest key
+    last = clef === 'bass' ? -3 : clef === 'treble' ? 3 : 0;
+    drawStaff();
+    drawKeys();
     newLine();
   }
-  levelBtns.forEach((b) => b.addEventListener('click', () => setLevel(+b.dataset.level)));
+  try {
+    const c = localStorage.getItem('read-clef'), r = localStorage.getItem('read-range');
+    if (['treble', 'bass', 'both'].includes(c)) clef = c;
+    if (r in RANGES) range = r;
+  } catch { /* private mode */ }
+  clefBtns.forEach((b) => b.addEventListener('click', () => { clef = b.dataset.v; setup(); }));
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { drawStaff(); newLine(true); }, 150);
+  });
+  rangeBtns.forEach((b) => b.addEventListener('click', () => { range = b.dataset.v; setup(); }));
   document.getElementById('help').addEventListener('click', () => { showHelp(); if (line[at]) tone(line[at].midi); });
   const lettersBtn = document.getElementById('letters');
   function setLetters(on) {
@@ -464,20 +584,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + .04);
   }
 
-  keyEls.forEach(({ midi, g }) => {
-    g.addEventListener('pointerdown', (ev) => {
-      ev.preventDefault();
-      tone(midi);
-      judge(midi);
-      g.classList.add('pressed');
-    });
-    const up = () => { g.classList.remove('pressed'); };
-    g.addEventListener('pointerup', up);
-    g.addEventListener('pointerleave', up);
-    g.addEventListener('pointercancel', up);
-  });
-  // Warm up the iPad note cache so the first tap isn't delayed.
-  if (useHtmlAudio) setTimeout(() => keyEls.forEach(({ midi }) => player(midi)), 300);
+  // Warm up the iPad note cache for the middle of the piano so the first tap isn't delayed.
+  if (useHtmlAudio) setTimeout(() => { for (let m = 48; m <= 72; m++) player(m); }, 300);
 
   // ---------- Listening to a real piano ----------
   // Autocorrelation pitch detection: reliable for one note at a time.
@@ -487,7 +595,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
     rms = Math.sqrt(rms / n);
     if (!full || rms < 0.0003) return { freq: -1, rms, clarity: 0 };
-    const minLag = Math.floor(sr / 2100), maxLag = Math.min(Math.floor(sr / 62), n >> 1), size = n - maxLag;
+    // From an octave below the lowest note in play (pitchFloor) up to C8. Wider ranges cost more work.
+    const minLag = Math.max(2, Math.floor(sr / 4400)), maxLag = Math.min(Math.floor(sr / pitchFloor), n >> 1), size = n - maxLag;
     const nsdf = new Float32Array(maxLag + 1);
     let best = 0;
     for (let lag = minLag; lag <= maxLag; lag++) {
@@ -546,7 +655,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       if (c.state !== 'running') await c.resume().catch(() => {});
       const src = c.createMediaStreamSource(stream);
       const an = c.createAnalyser();
-      an.fftSize = 2048;
+      an.fftSize = 4096;
       // Safari only processes audio that reaches the speakers, so route the analyser
       // to the output through a silent gain node.
       const mute = c.createGain();
@@ -554,7 +663,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       src.connect(an);
       an.connect(mute);
       mute.connect(c.destination);
-      mic = { stream, ctx: c, an, buf: new Float32Array(2048), sr: c.sampleRate, candF: null, stable: 0, lo: 0, hi: 0, hist: [0, 0, 0], window: 0, quietFor: 0 };
+      mic = { stream, ctx: c, an, buf: new Float32Array(4096), sr: c.sampleRate, candF: null, stable: 0, lo: 0, hi: 0, hist: [0, 0, 0], window: 0, quietFor: 0 };
       mic.timer = setInterval(listen, 16);
       micBtn.setAttribute('aria-pressed', 'true');
       micBtn.lastChild.textContent = 'Listening';
@@ -665,7 +774,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   function heard(midi) { judge(midi); }
 
   setLetters(lettersOn);
-  setLevel(level);
+  setup();
 })();
 </script>
 </body>
