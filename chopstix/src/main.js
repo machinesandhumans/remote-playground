@@ -108,9 +108,20 @@ tabs.forEach((t, i) => t.addEventListener('click', () => openLesson(i)));
 const fromHash = Number((location.hash.match(/lesson(\d)/) || [])[1]) - 1;
 openLesson(fromHash >= 0 && fromHash < 3 ? fromHash : 0);
 
-// Audio can only start after the first click or key press.
-const unlock = () => { synth.ensure(); window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
-window.addEventListener('pointerdown', unlock);
-window.addEventListener('keydown', unlock);
+// Audio can only start from a tap, click or key press. Keep trying on every gesture
+// until the browser reports that sound is running (iPhone/iPad need a tap that ends).
+const soundHint = document.getElementById('soundHint');
+const GESTURES = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
+const unlock = () => {
+  synth.unlock();
+  setTimeout(() => {
+    if (synth.running) {
+      GESTURES.forEach((g) => window.removeEventListener(g, unlock, true));
+      soundHint.hidden = true;
+    }
+  }, 100);
+};
+GESTURES.forEach((g) => window.addEventListener(g, unlock, true));
+soundHint.addEventListener('click', unlock);
 
 window.chopstix = { app, inputs, piano, h };
