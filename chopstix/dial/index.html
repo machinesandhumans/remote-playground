@@ -549,7 +549,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       src.connect(an);
       an.connect(mute);
       mute.connect(c.destination);
-      mic = { stream, ctx: c, an, buf: new Float32Array(2048), sr: c.sampleRate, cand: null, stable: 0, last: null, armed: true, avg: 0, quietFor: 0 };
+      mic = { stream, ctx: c, an, buf: new Float32Array(2048), sr: c.sampleRate, candF: null, stable: 0, lo: 0, hi: 0, hist: [0, 0, 0], window: 0, quietFor: 0 };
       mic.timer = setInterval(listen, 16);
       micBtn.setAttribute('aria-pressed', 'true');
       micBtn.lastChild.textContent = 'Listening';
@@ -613,20 +613,25 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       mic.quietFor++;
       if (mic.quietFor === 190 && !heardEl.querySelector('b')) heardEl.textContent = 'The microphone isn\'t picking up any sound. Check nothing is covering it, then tap Listen off and on.';
     } else mic.quietFor = 0;
-    // A jump in loudness means a new key was struck; silence re-arms too.
-    if (rms > mic.avg * 1.8 + 0.0005 || rms < 0.0005) mic.armed = true;
-    if (rms < 0.0005) mic.last = null;
-    mic.avg = mic.avg * 0.8 + rms * 0.2;
+    // Only count a note just after a fresh key strike: a sharp jump in loudness opens a
+    // short window. Ringing strings and the tail of the last note never jump, so they're ignored.
+    const before = mic.hist[0];
+    mic.hist.push(rms); mic.hist.shift();
+    if (rms > before * 2 && rms > 0.0008 && mic.window < 14) { mic.window = 24; mic.candF = null; mic.stable = 0; }
+    if (mic.window > 0) mic.window--;
     if (performance.now() < busyUntil) return; // don't "hear" our own speaker
-    if (freq > 0 && rms > 0.0008 && clarity > 0.75) {
-      const m = Math.round(69 + 12 * Math.log2(freq / 440));
-      if (m === mic.cand) mic.stable++; else { mic.cand = m; mic.stable = 1; }
-      if (mic.stable >= 2 && (mic.armed || m !== mic.last)) {
-        mic.last = m;
-        mic.armed = false;
-        heard(m);
+    if (mic.window > 0 && freq > 0 && rms > 0.0008 && clarity > 0.75) {
+      // A piano note holds a rock-steady pitch; voices slide and wobble. Require five
+      // readings in a row (about 80 ms) that stay within a fifth of a semitone.
+      const mf = 69 + 12 * Math.log2(freq / 440);
+      if (mic.candF != null && Math.abs(mf - mic.candF) < 0.25) {
+        mic.stable++; mic.lo = Math.min(mic.lo, mf); mic.hi = Math.max(mic.hi, mf);
+      } else { mic.candF = mf; mic.stable = 1; mic.lo = mic.hi = mf; }
+      if (mic.stable >= 5 && mic.hi - mic.lo < 0.2) {
+        mic.window = 0;
+        heard(Math.round((mic.lo + mic.hi) / 2));
       }
-    } else { mic.cand = null; mic.stable = 0; }
+    } else { mic.candF = null; mic.stable = 0; }
   }
   let hitTimer = null;
   function heard(midi) {
