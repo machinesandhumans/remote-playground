@@ -317,6 +317,10 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   });
 
   // ---------- Sound ----------
+  let mic = null, micStarting = false;
+  function setAudioSession(type) {
+    try { if (navigator.audioSession && navigator.audioSession.type !== type) navigator.audioSession.type = type; } catch (e) { /* not supported */ }
+  }
   let ctx = null, soundOn = true, cancelScale = [], scalePcs = new Set(), busyUntil = 0;
   const soundBtn = document.getElementById('sound');
   soundBtn.addEventListener('click', () => {
@@ -325,7 +329,9 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     soundBtn.setAttribute('aria-pressed', String(soundOn));
   });
   function unlock() {
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* not supported */ }
+    // 'playback' keeps Silent mode from muting notes, but it forbids recording, so never
+    // set it while (or just before) the microphone is in use.
+    setAudioSession(mic || micStarting ? 'play-and-record' : 'playback');
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
@@ -487,7 +493,6 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   const micBtn = document.getElementById('mic');
   const heardEl = document.getElementById('heard');
   const micDot = micBtn.querySelector('.dot');
-  let mic = null;
   micBtn.addEventListener('click', async () => {
     if (mic) { stopMic(); return; }
     if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -495,6 +500,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       return;
     }
     heardEl.textContent = 'Asking for the microphone…';
+    micStarting = true;
+    setAudioSession('play-and-record');
     let stream;
     try {
       // Ask for the mic first, straight from the tap, before touching audio playback.
@@ -505,9 +512,12 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
         else throw e;
       }
     } catch (e) {
+      micStarting = false;
+      setAudioSession('playback');
       showMicError(e);
       return;
     }
+    micStarting = false;
     try {
       const c = unlock() || new (window.AudioContext || window.webkitAudioContext)();
       if (c.state !== 'running') await c.resume().catch(() => {});
@@ -553,6 +563,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     console.warn('mic error', e);
   }
   function stopMic() {
+    setAudioSession('playback');
     clearInterval(mic.timer);
     mic.stream.getTracks().forEach((t) => t.stop());
     mic = null;
