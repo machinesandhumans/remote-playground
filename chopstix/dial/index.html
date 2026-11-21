@@ -57,6 +57,9 @@ body {
 .meter { display: none; width: 72px; height: 6px; border-radius: 3px; background: var(--seam); overflow: hidden; margin-right: 10px; }
 .meter span { display: block; height: 100%; width: 0%; background: var(--green); transition: width .06s linear; }
 .listening .meter { display: inline-block; }
+.sens { display: none; align-items: center; gap: 8px; margin-right: 14px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+.listening .sens { display: inline-flex; }
+.sens input { width: 120px; accent-color: var(--green); }
 .mic { display: inline-flex; align-items: center; gap: 8px; margin-right: 8px; }
 .mic .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--seam-dark); transition: background .2s, box-shadow .2s, transform .08s; }
 .mic[aria-pressed="true"] { color: var(--ink-strong); }
@@ -68,12 +71,11 @@ body {
 .heard .no { color: var(--red); }
 /* a key that was just heard lights up: green = in the scale, red = not in the scale */
 .hitfill { opacity: 0; transition: opacity .35s; pointer-events: none; }
-.hit-in .hitfill { fill: var(--green); opacity: .4; transition: none; }
-.hit-out .hitfill { fill: var(--red); opacity: .4; transition: none; }
-.key.black.hit-in .hitfill, .key.black.hit-out .hitfill { opacity: .75; }
+.hit-in .hitfill { fill: var(--green); opacity: 1; transition: none; }
+.hit-out .hitfill { fill: var(--red); opacity: 1; transition: none; }
 /* the note circle stays crisp and white while its key is lit */
-.key:not(.black).hit-in .ring, .key:not(.black).hit-out .ring { fill: #fff; opacity: 1; }
-.hit-in .lbl, .hit-out .lbl { opacity: 1; }
+.hit-in .ring, .hit-out .ring { fill: #fff !important; opacity: 1 !important; transition: none; }
+.hit-in .lbl, .hit-out .lbl { opacity: 1 !important; }
 /* a pressed or played key sinks a little: soft shadow at its top edge */
 .press { opacity: 0; transition: opacity .3s; pointer-events: none; }
 .pressed .press, .hit-in .press, .hit-out .press { opacity: 1; transition: none; }
@@ -110,6 +112,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     <span class="title">Major scale</span>
     <span id="soundMsg" class="sound-msg" role="status" hidden></span>
     <span class="heard" id="heard" role="status" aria-live="polite"></span>
+    <label class="sens">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>
     <span class="meter" id="meter" aria-hidden="true"><span id="meterFill"></span></span>
     <button id="mic" class="sound mic" aria-pressed="false"><span class="dot"></span>Listen</button>
     <button id="sound" class="sound" aria-pressed="true">Sound on</button>
@@ -137,7 +140,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
           <stop offset="0" stop-color="#cfcfca"/><stop offset=".5" stop-color="#ececea"/><stop offset="1" stop-color="#ffffff"/>
         </linearGradient>
         <linearGradient id="dimple" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#e1e1dd"/><stop offset=".55" stop-color="#f6f6f4"/><stop offset="1" stop-color="#ffffff"/>
+          <stop offset="0" stop-color="#d3d3ce"/><stop offset=".55" stop-color="#f1f1ef"/><stop offset="1" stop-color="#ffffff"/>
         </linearGradient>
         <filter id="redGlow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="5" result="b"/>
@@ -152,11 +155,11 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
         <circle class="focus-ring" r="136" fill="none" stroke="var(--green-soft)" stroke-width="3"/>
         <circle r="130" fill="url(#dish)" stroke="#9a9a95" stroke-width="1"/>
         <!-- inner wall shadow -->
-        <circle r="128" fill="none" stroke="#bdbdb8" stroke-width="6" opacity=".35" filter="url(#soft)" transform="translate(-3,-4)"/>
+        <circle r="127" fill="none" stroke="#c4c4bf" stroke-width="5" opacity=".3" filter="url(#soft)"/>
         <g id="rotor">
-          <circle cy="-104" r="16" fill="url(#dimple)" stroke="#e2e2de" stroke-width=".75"/>
-          <circle cy="-104" r="15" fill="none" stroke="#b4b4af" stroke-width="2.5" opacity=".2" filter="url(#soft)" transform="translate(-1,-1.5)"/>
-          <path d="M 4 -89.5 A 16 16 0 0 0 14.5 -99" fill="none" stroke="#ffffff" stroke-width="1.2" opacity=".8"/>
+          <circle cy="-88" r="16" fill="url(#dimple)" stroke="#d9d9d4" stroke-width=".75"/>
+          <circle cy="-88" r="15" fill="none" stroke="#a9a9a4" stroke-width="2.5" opacity=".32" filter="url(#soft)" transform="translate(-1,-1.5)"/>
+          <path d="M 4 -73.5 A 16 16 0 0 0 14.5 -83" fill="none" stroke="#ffffff" stroke-width="1.2" opacity=".85"/>
           <!-- full-face hit area so the dial turns from anywhere -->
           <circle r="134" fill="transparent"/>
         </g>
@@ -185,7 +188,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   const keyEls = []; // {midi, g}
   // no panel or rim: the keys sit straight on the surface, outlined by thin part lines
   const clip = el('clipPath', { id: 'bed' }, el('defs', {}, keysSvg));
-  el('rect', { x: PX, y: PY, width: W * 7, height: H, rx: 3 }, clip);
+  el('rect', { x: PX - 1, y: PY - 1, width: W * 7 + 2, height: H + 2, rx: 3 }, clip);
   const bed = el('g', { 'clip-path': 'url(#bed)' }, keysSvg);
   const defs = keysSvg.querySelector('defs');
   const wg = el('linearGradient', { id: 'whiteKey', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
@@ -207,9 +210,10 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   whites.forEach((m, i) => {
     const g = el('g', { class: 'key', 'data-midi': m }, bed);
     const x = PX + i * W;
-    el('rect', { x: x + .5, y: PY, width: W - 1, height: H, rx: 4, fill: 'url(#whiteKey)', stroke: '#9a9a95', 'stroke-width': 1 }, g);
-    el('rect', { class: 'hitfill', x: x + .5, y: PY, width: W - 1, height: H, rx: 4, fill: 'transparent' }, g);
-    el('rect', { class: 'press', x: x + .5, y: PY, width: W - 1, height: H, rx: 4, fill: 'url(#pressShade)' }, g);
+    el('rect', { x, y: PY, width: W, height: H, rx: 3, fill: 'url(#whiteKey)' }, g);
+    el('rect', { class: 'hitfill', x, y: PY, width: W, height: H, rx: 3, fill: 'transparent' }, g);
+    el('rect', { class: 'press', x, y: PY, width: W, height: H, rx: 3, fill: 'url(#pressShade)' }, g);
+    el('rect', { x, y: PY, width: W, height: H, rx: 3, fill: 'none', stroke: '#8e8e89', 'stroke-width': 1, 'vector-effect': 'non-scaling-stroke' }, g);
     label(g, x + W / 2, PY + H - 42, NAMES[m % 12], false);
     keyEls.push({ midi: m, g });
   });
@@ -219,7 +223,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     const g = el('g', { class: 'key black', 'data-midi': m }, bed);
     const cx = PX + boundary * W;
     const lx = cx;
-    el('rect', { x: cx - BW / 2 + 3, y: PY, width: BW, height: BH + 4, rx: 5, fill: '#000', opacity: .12 }, g);
+    el('rect', { x: cx - BW / 2 - 1, y: PY, width: BW + 2, height: BH + 3, rx: 5, fill: '#000', opacity: .1 }, g);
     el('rect', { x: cx - BW / 2, y: PY, width: BW, height: BH, rx: 5, fill: 'url(#blackKey)', stroke: '#141416' }, g);
     el('rect', { class: 'hitfill', x: cx - BW / 2, y: PY, width: BW, height: BH, rx: 5, fill: 'transparent' }, g);
     el('rect', { class: 'press', x: cx - BW / 2, y: PY, width: BW, height: BH, rx: 5, fill: 'url(#pressShade)' }, g);
@@ -237,7 +241,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     const t = el('text', { class: 'lbl note-name', x: Math.cos(a) * 186, y: Math.sin(a) * 186 }, names);
     t.textContent = n;
     t.style.cursor = 'pointer';
-    t.addEventListener('click', () => { setKey(i, true); animateTo(nearestTurn(i * 30)); });
+    t.addEventListener('click', () => { setKey(i, false); animateTo(nearestTurn(i * 30)); });
     return t;
   });
   const dial = document.getElementById('dial');
@@ -269,23 +273,16 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     });
     dial.setAttribute('aria-valuenow', k);
     dial.setAttribute('aria-valuetext', `${NAMES[k]} major`);
-    if (changed) tick();
-    if (play) playScale();
+    // (No click or scale playback on a key change; the highlights are enough.)
   }
   let anim = null;
   let target = 0;
+  // Snap straight to the new key: no animation, no sound.
   function animateTo(to) {
     target = to;
     cancelAnimationFrame(anim);
-    const from = rotation, t0 = performance.now(), dur = 260;
-    const step = (t) => {
-      const u = Math.min(1, (t - t0) / dur);
-      const e = 1 - Math.pow(1 - u, 3);
-      rotation = from + (to - from) * e;
-      render();
-      if (u < 1) anim = requestAnimationFrame(step);
-    };
-    anim = requestAnimationFrame(step);
+    rotation = to;
+    render();
   }
 
   const svg = document.getElementById('dialSvg');
@@ -394,13 +391,27 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     wavCache.set(midi, url);
     return url;
   }
+  // iPad: making a new <audio> element for every tap piles up decoders and makes Safari
+  // lag, then play stale or garbled notes. Keep two reusable players per note instead.
+  const players = new Map();
+  function player(midi) {
+    let pool = players.get(midi);
+    if (!pool) {
+      pool = [0, 1].map(() => { const a = new Audio(noteWav(midi)); a.setAttribute('playsinline', ''); a.preload = 'auto'; return a; });
+      pool.next = 0;
+      players.set(midi, pool);
+    }
+    const a = pool[pool.next];
+    pool.next = (pool.next + 1) % pool.length;
+    if (!a.paused) a.pause();
+    return a;
+  }
   function tone(midi, when = 0, dur = 1.2, vol = .22) {
     if (!soundOn) return;
     busyUntil = Math.max(busyUntil, performance.now() + (when + dur * .8) * 1000);
     if (useHtmlAudio) {
-      const a = new Audio(noteWav(midi));
-      a.setAttribute('playsinline', '');
-      const go = () => a.play().then(soundOk, soundBlocked);
+      const a = player(midi);
+      const go = () => { try { a.currentTime = 0; } catch { /* not loaded yet */ } a.play().then(soundOk, soundBlocked); };
       if (when > 0) setTimeout(go, when * 1000); else go();
       return;
     }
@@ -475,16 +486,16 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     g.addEventListener('pointercancel', up);
   });
   // Warm up the iPad note cache so the first tap isn't delayed.
-  if (useHtmlAudio) setTimeout(() => keyEls.forEach(({ midi }) => noteWav(midi)), 300);
+  if (useHtmlAudio) setTimeout(() => keyEls.forEach(({ midi }) => player(midi)), 300);
 
   // ---------- Listening to a real piano ----------
   // Autocorrelation pitch detection: reliable for one note at a time.
-  function detectPitch(buf, sr) {
+  function detectPitch(buf, sr, full = true) {
     const n = buf.length;
     let rms = 0;
     for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
     rms = Math.sqrt(rms / n);
-    if (rms < 0.0006) return { freq: -1, rms, clarity: 0 };
+    if (!full || rms < 0.0003) return { freq: -1, rms, clarity: 0 };
     const minLag = Math.floor(sr / 2100), maxLag = Math.min(Math.floor(sr / 62), n >> 1), size = n - maxLag;
     const nsdf = new Float32Array(maxLag + 1);
     let best = 0;
@@ -607,7 +618,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     // iPad can pause ("interrupt") the context when the audio mode changes; wake it up.
     if (mic.ctx.state !== 'running') mic.ctx.resume().catch(() => {});
     mic.an.getFloatTimeDomainData(mic.buf);
-    const { freq, rms, clarity } = detectPitch(mic.buf, mic.sr);
+    const { rms } = detectPitch(mic.buf, mic.sr, false);
     micDot.style.transform = `scale(${1 + Math.min(1.2, rms * 12)})`;
     // Level meter: log scale so quiet rooms still show movement.
     const lvl = rms > 0 ? Math.max(0, Math.min(1, (20 * Math.log10(rms) + 60) / 50)) : 0;
@@ -625,22 +636,41 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     const now = Math.sqrt(e / 512);
     const before = mic.hist[0];
     mic.hist.push(now); mic.hist.shift();
-    if (now > before * 1.5 && now > 0.0008 && mic.window < 20) { mic.window = 24; mic.candF = null; mic.stable = 0; }
+    if (now > before * sens.ratio && now > sens.floor && mic.window < 20) { mic.window = 24; mic.candF = null; mic.stable = 0; }
     if (mic.window > 0) mic.window--;
     if (performance.now() < busyUntil) return; // don't "hear" our own speaker
-    if (mic.window > 0 && freq > 0 && rms > 0.0008 && clarity > 0.7) {
-      // A piano note holds a rock-steady pitch; voices slide and wobble. Require five
-      // readings in a row (about 80 ms) that stay within a fifth of a semitone.
+    // The pitch analysis is the expensive part, so only run it just after a key strike.
+    const { freq, clarity } = mic.window > 0 ? detectPitch(mic.buf, mic.sr, true) : { freq: -1, clarity: 0 };
+    if (mic.window > 0 && freq > 0 && rms > sens.floor && clarity > sens.clarity) {
+      // A piano note holds a rock-steady pitch; voices slide and wobble. Require a few
+      // readings in a row that stay within a fraction of a semitone.
       const mf = 69 + 12 * Math.log2(freq / 440);
       if (mic.candF != null && Math.abs(mf - mic.candF) < 0.25) {
         mic.stable++; mic.lo = Math.min(mic.lo, mf); mic.hi = Math.max(mic.hi, mf);
       } else { mic.candF = mf; mic.stable = 1; mic.lo = mic.hi = mf; }
-      if (mic.stable >= 3 && mic.hi - mic.lo < 0.3) {
+      if (mic.stable >= sens.frames && mic.hi - mic.lo < 0.3) {
         mic.window = 0;
         heard(Math.round((mic.lo + mic.hi) / 2));
       }
     } else { mic.candF = null; mic.stable = 0; }
   }
+  // Sensitivity slider (0 = strict, 1 = catches everything). 0.5 matches the tuned defaults.
+  const sensEl = document.getElementById('sens');
+  const sens = {};
+  function setSens(v) {
+    const x = Math.max(0, Math.min(1, v));
+    sens.ratio = 1.5 * Math.pow(1.35, 1 - 2 * x);   // loudness jump that counts as a strike: 2.0 .. 1.1
+    sens.floor = 0.0008 * Math.pow(4, 1 - 2 * x);   // quietest sound considered: 0.0032 .. 0.0002
+    sens.clarity = 0.7 + 0.1 * (1 - 2 * x);         // how clean the pitch must be: 0.8 .. 0.6
+    sens.frames = x < 0.34 ? 4 : x < 0.67 ? 3 : 2;   // steady readings needed
+    try { localStorage.setItem('dial-sens', String(x)); } catch { /* private mode */ }
+  }
+  let saved = NaN;
+  try { saved = parseFloat(localStorage.getItem('dial-sens')); } catch { /* private mode */ }
+  sensEl.value = Number.isFinite(saved) ? saved : 0.5;
+  setSens(parseFloat(sensEl.value));
+  sensEl.addEventListener('input', () => setSens(parseFloat(sensEl.value)));
+
   let hitTimer = null;
   function heard(midi) {
     const pc = ((midi % 12) + 12) % 12;
