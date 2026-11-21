@@ -322,8 +322,45 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     return ctx;
   }
   ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach((g) => window.addEventListener(g, unlock, true));
+  // Older iPads (before iPadOS 17) silence Web Audio when the side switch / Silent mode is on.
+  // On those we play pre-rendered notes through an <audio> element instead, which isn't muted.
+  const isIOS = /iP(ad|hone|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const useHtmlAudio = isIOS && !navigator.audioSession;
+  const wavCache = new Map();
+  function noteWav(midi) {
+    if (wavCache.has(midi)) return wavCache.get(midi);
+    const sr = 22050, len = Math.floor(sr * 1.3), f = 440 * Math.pow(2, (midi - 69) / 12);
+    const buf = new ArrayBuffer(44 + len * 2), v = new DataView(buf);
+    const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + len * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true);
+    v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, len * 2, true);
+    for (let i = 0; i < len; i++) {
+      const t = i / sr;
+      const env = Math.min(1, t * 120) * Math.exp(-t * 3.2);
+      // triangle-ish fundamental plus soft overtones
+      const x = Math.sin(2 * Math.PI * f * t) + .3 * Math.sin(4 * Math.PI * f * t) + .1 * Math.sin(6 * Math.PI * f * t);
+      v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, x * env * .45)) * 32767, true);
+    }
+    const url = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    wavCache.set(midi, url);
+    return url;
+  }
   function tone(midi, when = 0, dur = 1.2, vol = .22) {
-    if (!soundOn || !ctx) return;
+    if (!soundOn) return;
+    if (useHtmlAudio) {
+      const a = new Audio(noteWav(midi));
+      a.setAttribute('playsinline', '');
+      const go = () => a.play().catch(() => {});
+      if (when > 0) setTimeout(go, when * 1000); else go();
+      return;
+    }
+    const c = unlock();
+    if (!c) return;
+    if (c.state === 'running') webTone(midi, when, dur, vol);
+    else c.resume().then(() => webTone(midi, when, dur, vol)).catch(() => {});
+  }
+  function webTone(midi, when, dur, vol) {
     const t = ctx.currentTime + when + .01;
     const f = 440 * Math.pow(2, (midi - 69) / 12);
     const g = ctx.createGain();
@@ -341,7 +378,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     });
   }
   function tick() {
-    if (!soundOn || !ctx) return;
+    if (!soundOn || !ctx || useHtmlAudio || ctx.state !== 'running') return;
     const t = ctx.currentTime;
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.frequency.value = 2400;
@@ -368,7 +405,19 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       }, i * 220));
     });
   }
-  keyEls.forEach(({ midi, g }) => g.addEventListener('pointerdown', () => { unlock(); tone(midi + 12 * 0); flash(midi); }));
+  keyEls.forEach(({ midi, g }) => {
+    g.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      tone(midi);
+      g.style.opacity = .72;
+    });
+    const up = () => { g.style.opacity = ''; };
+    g.addEventListener('pointerup', up);
+    g.addEventListener('pointerleave', up);
+    g.addEventListener('pointercancel', up);
+  });
+  // Warm up the iPad note cache so the first tap isn't delayed.
+  if (useHtmlAudio) setTimeout(() => keyEls.forEach(({ midi }) => noteWav(midi)), 300);
 
   setKey(0, false);
   render();
