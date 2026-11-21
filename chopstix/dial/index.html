@@ -58,6 +58,7 @@ body {
 .mic[aria-pressed="true"] .dot { background: var(--red); box-shadow: 0 0 8px var(--red); }
 .heard { margin-right: 14px; font-size: 16px; color: var(--ink-strong); letter-spacing: .02em; white-space: nowrap; }
 .heard b { font-weight: 700; }
+.heard.err { white-space: normal; color: var(--red); font-size: 14px; max-width: 640px; text-align: right; line-height: 1.35; }
 .heard .yes { color: var(--red); }
 .heard .no { color: var(--ink); }
 /* a key that was just heard: in the scale = solid red badge, not in the scale = struck-out grey badge */
@@ -489,10 +490,25 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   let mic = null;
   micBtn.addEventListener('click', async () => {
     if (mic) { stopMic(); return; }
-    unlock();
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showMicError(); return; }
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showMicError({ name: 'NoApi' });
+      return;
+    }
+    heardEl.textContent = 'Asking for the microphone…';
+    let stream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      // Ask for the mic first, straight from the tap, before touching audio playback.
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      } catch (e) {
+        if (e && (e.name === 'OverconstrainedError' || e.name === 'TypeError')) stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        else throw e;
+      }
+    } catch (e) {
+      showMicError(e);
+      return;
+    }
+    try {
       const c = unlock() || new (window.AudioContext || window.webkitAudioContext)();
       if (c.state !== 'running') await c.resume().catch(() => {});
       const src = c.createMediaStreamSource(stream);
@@ -503,13 +519,38 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       mic.timer = setInterval(listen, 35);
       micBtn.setAttribute('aria-pressed', 'true');
       micBtn.lastChild.textContent = 'Listening';
+      heardEl.classList.remove('err');
       heardEl.textContent = 'Play a note on your piano';
     } catch (e) {
-      showMicError();
+      stream.getTracks().forEach((t) => t.stop());
+      showMicError({ name: 'AudioSetup', message: e && e.message });
     }
   });
-  function showMicError() {
-    heardEl.textContent = 'Microphone not allowed. Allow it for this site and try again.';
+  // Say which situation we're in, so it's clear what to change.
+  function showMicError(e) {
+    const name = (e && e.name) || 'Unknown';
+    const inApp = isIOS && !/Safari\//.test(navigator.userAgent); // in-app browsers (e.g. inside the Claude app) drop "Safari/"
+    let text;
+    if (name === 'NoApi') {
+      text = inApp
+        ? 'This in-app browser can\'t use the microphone. Open this page in Safari (tap the compass/Safari icon, or copy the link into Safari).'
+        : 'This browser can\'t use the microphone here. Open the page in Safari or Chrome.';
+    } else if (name === 'NotAllowedError' || name === 'SecurityError') {
+      text = inApp
+        ? 'The app you opened this in isn\'t allowed to use the microphone. Open this page in Safari instead (tap the compass/Safari icon, or copy the link into Safari).'
+        : isIOS
+          ? 'Microphone is blocked for this site. In Safari tap “aA” (or the page icon) in the address bar → Website Settings → Microphone → Allow, then reload. Also check Settings → Apps → Safari → Microphone is set to Ask or Allow.'
+          : 'Microphone is blocked for this site. Click the icon next to the address bar, allow the microphone, then reload.';
+    } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+      text = 'No microphone was found on this device.';
+    } else if (name === 'NotReadableError' || name === 'AbortError') {
+      text = 'Another app is using the microphone. Close it (or end the call) and tap Listen again.';
+    } else {
+      text = 'Couldn\'t start the microphone (' + name + '). Reload the page and tap Listen again.';
+    }
+    heardEl.textContent = text;
+    heardEl.classList.add('err');
+    console.warn('mic error', e);
   }
   function stopMic() {
     clearInterval(mic.timer);
