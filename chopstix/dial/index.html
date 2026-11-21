@@ -68,11 +68,15 @@ body {
 .heard .no { color: var(--red); }
 /* a key that was just heard lights up: green = in the scale, red = not in the scale */
 .hitfill { opacity: 0; transition: opacity .35s; pointer-events: none; }
-.hit-in .hitfill { fill: var(--green); opacity: .8; transition: none; }
-.hit-out .hitfill { fill: var(--red); opacity: .8; transition: none; }
-.hit-in .lbl, .hit-out .lbl { fill: #fff !important; }
-.hit-in .ring, .hit-out .ring { fill: transparent !important; stroke: rgba(255,255,255,.7) !important; }
-.hit-in .glow, .hit-out .glow { opacity: 0 !important; }
+.hit-in .hitfill { fill: var(--green); opacity: .4; transition: none; }
+.hit-out .hitfill { fill: var(--red); opacity: .4; transition: none; }
+.key.black.hit-in .hitfill, .key.black.hit-out .hitfill { opacity: .75; }
+/* the note circle stays crisp and white while its key is lit */
+.key:not(.black).hit-in .ring, .key:not(.black).hit-out .ring { fill: #fff; opacity: 1; }
+.hit-in .lbl, .hit-out .lbl { opacity: 1; }
+/* a pressed or played key sinks a little: soft shadow at its top edge */
+.press { opacity: 0; transition: opacity .3s; pointer-events: none; }
+.pressed .press, .hit-in .press, .hit-out .press { opacity: 1; transition: none; }
 .sound-msg { flex: 1; margin: 0 16px; font-size: 14px; color: var(--red); text-align: right; }
 .sound[aria-pressed="true"] { color: var(--ink-strong); }
 .sound:focus-visible { outline: 2px solid var(--green-soft); outline-offset: 4px; }
@@ -133,7 +137,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
           <stop offset="0" stop-color="#cfcfca"/><stop offset=".5" stop-color="#ececea"/><stop offset="1" stop-color="#ffffff"/>
         </linearGradient>
         <linearGradient id="dimple" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#bcbcb6"/><stop offset=".55" stop-color="#ececea"/><stop offset="1" stop-color="#ffffff"/>
+          <stop offset="0" stop-color="#e1e1dd"/><stop offset=".55" stop-color="#f6f6f4"/><stop offset="1" stop-color="#ffffff"/>
         </linearGradient>
         <filter id="redGlow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="5" result="b"/>
@@ -144,18 +148,15 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
         </filter>
       </defs>
       <g id="names"></g>
-      <circle r="150" fill="url(#plate)" stroke="var(--seam)" stroke-width="1"/>
-      <circle r="138" fill="none" stroke="#ffffff" stroke-width="1.5" opacity=".9"/>
       <g id="dial" class="dial" tabindex="0" role="slider" aria-label="Key" aria-valuemin="0" aria-valuemax="11">
-        <circle class="focus-ring" r="142" fill="none" stroke="var(--green-soft)" stroke-width="3"/>
-        <circle r="134" fill="url(#rim)"/>
-        <circle r="130" fill="url(#dish)"/>
+        <circle class="focus-ring" r="136" fill="none" stroke="var(--green-soft)" stroke-width="3"/>
+        <circle r="130" fill="url(#dish)" stroke="#9a9a95" stroke-width="1"/>
         <!-- inner wall shadow -->
         <circle r="128" fill="none" stroke="#bdbdb8" stroke-width="6" opacity=".35" filter="url(#soft)" transform="translate(-3,-4)"/>
         <g id="rotor">
-          <circle cy="-104" r="15" fill="url(#dimple)" stroke="#d0d0cb" stroke-width="1"/>
-          <circle cy="-104" r="15" fill="none" stroke="#9d9d98" stroke-width="3" opacity=".45" filter="url(#soft)" transform="translate(-1.5,-2)"/>
-          <path d="M 4 -90.5 A 15 15 0 0 0 13.5 -99" fill="none" stroke="#ffffff" stroke-width="1.5" opacity=".9"/>
+          <circle cy="-104" r="16" fill="url(#dimple)" stroke="#e2e2de" stroke-width=".75"/>
+          <circle cy="-104" r="15" fill="none" stroke="#b4b4af" stroke-width="2.5" opacity=".2" filter="url(#soft)" transform="translate(-1,-1.5)"/>
+          <path d="M 4 -89.5 A 16 16 0 0 0 14.5 -99" fill="none" stroke="#ffffff" stroke-width="1.2" opacity=".8"/>
           <!-- full-face hit area so the dial turns from anywhere -->
           <circle r="134" fill="transparent"/>
         </g>
@@ -182,9 +183,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   const PX = 20, PY = 14, W = 720 / 7, H = 300, BW = 60, BH = 182;
   const whites = [60, 62, 64, 65, 67, 69, 71]; // one octave, C4..B4 (the mic folds any octave onto it)
   const keyEls = []; // {midi, g}
-  // material panel with a seam around the keybed
-  el('rect', { x: 0, y: 0, width: 760, height: 330, rx: 16, fill: '#fbfbfa', stroke: '#dcdcd8' }, keysSvg);
-  el('rect', { x: PX - 4, y: PY - 4, width: W * 7 + 8, height: H + 8, rx: 6, fill: '#ececea', stroke: '#d3d3cf' }, keysSvg);
+  // no panel or rim: the keys sit straight on the surface, outlined by thin part lines
   const clip = el('clipPath', { id: 'bed' }, el('defs', {}, keysSvg));
   el('rect', { x: PX, y: PY, width: W * 7, height: H, rx: 3 }, clip);
   const bed = el('g', { 'clip-path': 'url(#bed)' }, keysSvg);
@@ -195,6 +194,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   el('stop', { offset: 0, 'stop-color': '#1f1f21' }, bg); el('stop', { offset: 1, 'stop-color': '#3a3a3d' }, bg);
   const glowF = el('filter', { id: 'keyGlow', x: '-80%', y: '-80%', width: '260%', height: '260%' }, defs);
   el('feGaussianBlur', { stdDeviation: 6 }, glowF);
+  const pg = el('linearGradient', { id: 'pressShade', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: 0, 'stop-color': '#000', 'stop-opacity': .22 }, pg); el('stop', { offset: .18, 'stop-color': '#000', 'stop-opacity': .06 }, pg); el('stop', { offset: .4, 'stop-color': '#000', 'stop-opacity': 0 }, pg);
 
   function label(g, cx, cy, text, dark) {
     el('circle', { class: 'glow', cx, cy, r: 20, fill: 'var(--green)', opacity: 0, filter: 'url(#keyGlow)', style: 'fill-opacity:.45' }, g);
@@ -206,20 +207,22 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   whites.forEach((m, i) => {
     const g = el('g', { class: 'key', 'data-midi': m }, bed);
     const x = PX + i * W;
-    el('rect', { x: x + 1, y: PY - 2, width: W - 2, height: H + 2, rx: 4, fill: 'url(#whiteKey)', stroke: '#d9d9d5' }, g);
-    el('rect', { class: 'hitfill', x: x + 1, y: PY - 2, width: W - 2, height: H + 2, rx: 4, fill: 'transparent' }, g);
+    el('rect', { x: x + .5, y: PY, width: W - 1, height: H, rx: 4, fill: 'url(#whiteKey)', stroke: '#9a9a95', 'stroke-width': 1 }, g);
+    el('rect', { class: 'hitfill', x: x + .5, y: PY, width: W - 1, height: H, rx: 4, fill: 'transparent' }, g);
+    el('rect', { class: 'press', x: x + .5, y: PY, width: W - 1, height: H, rx: 4, fill: 'url(#pressShade)' }, g);
     label(g, x + W / 2, PY + H - 42, NAMES[m % 12], false);
     keyEls.push({ midi: m, g });
   });
   // black keys sit on the boundary after these white keys (index into whites)
   const blacks = [[61, 1], [63, 2], [66, 4], [68, 5], [70, 6]];
   blacks.forEach(([m, boundary]) => {
-    const g = el('g', { class: 'key', 'data-midi': m }, bed);
+    const g = el('g', { class: 'key black', 'data-midi': m }, bed);
     const cx = PX + boundary * W;
     const lx = cx;
-    el('rect', { x: cx - BW / 2 + 3, y: PY - 2, width: BW, height: BH + 4, rx: 5, fill: '#000', opacity: .12 }, g);
-    el('rect', { x: cx - BW / 2, y: PY - 2, width: BW, height: BH, rx: 5, fill: 'url(#blackKey)', stroke: '#141416' }, g);
-    el('rect', { class: 'hitfill', x: cx - BW / 2, y: PY - 2, width: BW, height: BH, rx: 5, fill: 'transparent' }, g);
+    el('rect', { x: cx - BW / 2 + 3, y: PY, width: BW, height: BH + 4, rx: 5, fill: '#000', opacity: .12 }, g);
+    el('rect', { x: cx - BW / 2, y: PY, width: BW, height: BH, rx: 5, fill: 'url(#blackKey)', stroke: '#141416' }, g);
+    el('rect', { class: 'hitfill', x: cx - BW / 2, y: PY, width: BW, height: BH, rx: 5, fill: 'transparent' }, g);
+    el('rect', { class: 'press', x: cx - BW / 2, y: PY, width: BW, height: BH, rx: 5, fill: 'url(#pressShade)' }, g);
     label(g, lx, PY + BH - 32, NAMES[m % 12], true);
     keyEls.push({ midi: m, g });
   });
@@ -464,9 +467,9 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       ev.preventDefault();
       tone(midi);
       heard(midi); // tapped keys light green (in the scale) or red (not in it), like played ones
-      g.style.opacity = .72;
+      g.classList.add('pressed');
     });
-    const up = () => { g.style.opacity = ''; };
+    const up = () => { g.classList.remove('pressed'); };
     g.addEventListener('pointerup', up);
     g.addEventListener('pointerleave', up);
     g.addEventListener('pointercancel', up);
