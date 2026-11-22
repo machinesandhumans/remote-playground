@@ -48,7 +48,10 @@ body {
 .topline { width: 100%; display: flex; align-items: center; gap: 10px; }
 #hear { margin-right: auto; }
 .songmode #hear { margin-right: auto; }
-.songnav { margin-right: auto; }
+/* back/again/next sit in the middle of the page, with Again exactly at the centre (Auto hangs off the right) */
+.topline { position: relative; }
+.songnav { position: absolute; left: 50%; transform: translateX(calc(-34px - 8px - 17px)); }
+@media (max-width: 1000px) { .songnav { position: static; transform: none; margin-right: auto; } }
 /* round icon buttons: back, again, next */
 .round { width: 34px; height: 34px; border-radius: 50%; padding: 0; display: inline-grid; place-items: center; cursor: pointer;
   background: var(--panel); border: 1px solid var(--seam-dark); color: var(--ink-strong); box-shadow: 0 1px 2px rgba(0,0,0,.05); }
@@ -84,7 +87,7 @@ body {
 .mic[aria-pressed="true"] .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
 .sound-msg { display: none; }
 
-/* the line under the staff: what was heard, plus the streak */
+/* the line under the staff: what was heard */
 .status { width: 100%; display: flex; align-items: center; gap: 14px; min-height: 30px; font-size: 22px; }
 .heard { margin-right: auto; }
 .status .sound { font-size: 11px; padding: 5px 10px; }
@@ -93,8 +96,6 @@ body {
 .heard .yes { color: var(--green); }
 .heard .no { color: var(--red); }
 .heard.err { color: var(--red); font-size: 15px; line-height: 1.35; max-width: 760px; }
-.streak { font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
-.streak b { color: var(--ink-strong); font-size: 20px; letter-spacing: 0; margin-left: 6px; }
 
 svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; width: auto; height: 100%; }
 #staff { width: 100%; }
@@ -193,7 +194,6 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   <div class="status">
     <span class="heard" id="heard" role="status" aria-live="polite"></span>
     <span class="meter" id="meter" aria-hidden="true"><span id="meterFill"></span></span>
-    <span class="streak">In a row<b id="streak">0</b></span>
   </div>
 
   <div class="keys-wrap">
@@ -299,7 +299,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     notesG = el('g', {}, staff);
   }
 
-  let line = [], at = 0, misses = 0, streak = 0, last = null;
+  let line = [], at = 0, misses = 0, last = null;
   function pick() {
     let s, tries = 0;
     do {
@@ -371,7 +371,6 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     const ok = midi === n.midi;
     lightKey(midi, ok);
     if (ok) {
-      streak++;
       heardEl.innerHTML = `<b class="yes">${n.label || (n.s === 0 ? 'Middle C' : LETTERS[mod7(n.s)])}</b>, that's right`;
       n.g.classList.remove('miss', 'now');
       n.g.classList.add('done');
@@ -379,7 +378,6 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       at++;
       if (at >= line.length) { if (song) lineDone(); else setTimeout(newLine, 450); } else showCurrent();
     } else {
-      streak = 0;
       misses++;
       const pc = ((midi % 12) + 12) % 12;
       if (pc === n.midi % 12) {
@@ -393,7 +391,6 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       setTimeout(() => n.g.classList.remove('miss', 'shake'), 500);
       if (misses >= 2) showHelp();
     }
-    document.getElementById('streak').textContent = streak;
   }
 
   // ---------- Songs ----------
