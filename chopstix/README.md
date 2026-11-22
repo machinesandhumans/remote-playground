@@ -55,21 +55,21 @@ npm test   # music theory (scales, spelling, chords) and pitch detection
 ## Note reader (`read/`)
 
 A large‑print sight reading practice page, built for an iPad held sideways. A very large staff shows four whole
-notes at a time; play the highlighted one on the real piano (tap **Listen**) or on the on‑screen keys.
+notes at a time; play the highlighted one on the real piano (tap **Mic**) or on the on‑screen keys.
 
 - **Clef:** Treble, Bass, or Both (a grand staff). With Both, middle C shows up on either staff.
 - **How much of the piano:** 2 octaves (C3–C5, an octave either side of middle C), 4 octaves (C2–C6) or all 88 keys
   (A0–C8). The on‑screen keyboard shows the same stretch, with middle C marked. Notes far above or below the staff
   are written with 8va / 8vb, as in real music.
 - **Exact notes:** only the exact key counts. Playing C3 when middle C is written says "Right letter, wrong C. Go one octave higher".
-- Right notes turn green and show their letter; wrong ones shake red. After two misses, or on **Help**, the letter
-  appears under the note and the matching key glows. **Letters** turns the key labels on and off.
+- Right notes turn green and show their letter; wrong ones shake red. After two misses the letter appears under
+  the note and the matching key glows. The keys always show their letters.
 
 **Songs.** The **Song** list starts with **Random** (the random notes above), then real songs A to Z; the first is
 *Danny Boy* (F major, 4/4, one bar per line so the notes stay big) and *O Holy Night* (C major, 6/8), each transcribed from a lead sheet. A song is drawn in real note values
 (quarter, eighth and dotted notes, rests, ties, time signature) with the lyrics under it, one line of the
 printed page at a time. **Part** picks one line, a lettered section (several lines, played one after another)
-or the whole song. **Hear it** plays the line at the song's tempo. **Back** and **Next** step a line (or a part) at a time, **Again** restarts the part,
+or the whole song. **Play it** plays the line at the song's tempo. **Back** and **Next** step a line (or a part) at a time, **Again** restarts the part,
 and **Auto next** (on by default) moves straight on to the next line or section when one is finished.
 Tied notes are played once. Songs live in the `SONGS` list in `read/index.html`, written as `pitch beats lyric`
 tokens (beats in eighth notes, `~` tie, `^` fermata, `r` rest). A song can set `key` (flats negative, sharps positive),
