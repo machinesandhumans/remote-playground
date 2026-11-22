@@ -62,8 +62,8 @@ notes at a time; play the highlighted one on the real piano (tap **Mic**) or on 
   (A0–C8). The on‑screen keyboard shows the same stretch, with middle C marked. Notes far above or below the staff
   are written with 8va / 8vb, as in real music.
 - **Exact notes:** only the exact key counts. Playing C3 when middle C is written says "Right letter, wrong C. Go one octave higher".
-- Right notes turn green and show their letter; wrong ones shake red. After two misses, or on **Help**, the letter
-  appears under the note and the matching key glows. **Letters** turns the key labels on and off.
+- Right notes turn green and show their letter; wrong ones shake red. After two misses the letter appears under
+  the note and the matching key glows. The keys always show their letters.
 
 **Songs.** The **Song** list starts with **Random** (the random notes above), then real songs A to Z; the first is
 *Danny Boy* (F major, 4/4, one bar per line so the notes stay big) and *O Holy Night* (C major, 6/8), each transcribed from a lead sheet. A song is drawn in real note values

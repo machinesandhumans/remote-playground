@@ -139,8 +139,6 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 .note.playing .head, .note.playing .stem { fill: var(--green); }
 .key { cursor: pointer; }
 .lbl { font-family: var(--font); font-weight: 600; text-anchor: middle; dominant-baseline: central; }
-.no-letters .key .ring, .no-letters .key .lbl { opacity: 0; }
-.no-letters .key.target .ring, .no-letters .key.target .lbl { opacity: 1; }
 .hitfill { opacity: 0; transition: opacity .35s; pointer-events: none; }
 .hit-in .hitfill { fill: var(--green); opacity: 1; transition: none; }
 .hit-out .hitfill { fill: var(--red); opacity: 1; transition: none; }
@@ -194,8 +192,6 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 
   <div class="status">
     <span class="heard" id="heard" role="status" aria-live="polite"></span>
-    <button id="help" class="sound">Help</button>
-    <button id="letters" class="sound" aria-pressed="true">Letters</button>
     <span class="meter" id="meter" aria-hidden="true"><span id="meterFill"></span></span>
     <span class="streak">In a row<b id="streak">0</b></span>
   </div>
@@ -842,16 +838,6 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     }, 150);
   });
   rangeBtns.forEach((b) => b.addEventListener('click', () => { range = b.dataset.v; setup(); }));
-  document.getElementById('help').addEventListener('click', () => { showHelp(); if (line[at]) tone(line[at].midi); });
-  const lettersBtn = document.getElementById('letters');
-  function setLetters(on) {
-    document.body.classList.toggle('no-letters', !on);
-    lettersBtn.setAttribute('aria-pressed', String(on));
-    try { localStorage.setItem('read-letters', on ? '1' : '0'); } catch { /* private mode */ }
-  }
-  let lettersOn = true;
-  try { lettersOn = localStorage.getItem('read-letters') !== '0'; } catch { /* private mode */ }
-  lettersBtn.addEventListener('click', () => setLetters(lettersBtn.getAttribute('aria-pressed') !== 'true'));
 
   // ---------- Sound ----------
   let mic = null, micStarting = false;
@@ -1183,7 +1169,6 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 
   function heard(midi) { judge(midi); }
 
-  setLetters(lettersOn);
   let savedSong = '';
   try { savedSong = localStorage.getItem('read-song') || ''; } catch { /* private mode */ }
   chooseSong(savedSong);
