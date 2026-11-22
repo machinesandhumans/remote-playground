@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Chopstix Note Reader</title>
+<title>🔥🚸🌭</title>
 <style>
 /* Big-print sight reading: a large staff (treble, bass or both) on top, the piano keys right below it. Same look as the scale dial. */
 :root {
@@ -40,10 +40,28 @@ body {
 .stage {
   height: 100%; max-width: 1280px; margin: 0 auto;
   padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
-  display: grid; grid-template-rows: auto minmax(0, 62fr) auto minmax(0, 34fr); gap: 1.4vh;
+  display: grid; grid-template-rows: auto auto minmax(0, 62fr) auto minmax(0, 34fr); gap: 1.4vh;
   justify-items: center;
 }
-.topline { width: 100%; display: flex; align-items: center; gap: 8px; }
+.titlebar { width: 100%; }
+.titlebar .title { font-size: 26px; letter-spacing: .08em; }
+.topline { width: 100%; display: flex; align-items: center; gap: 10px; }
+#hear { margin-right: auto; }
+.songmode #hear { margin-right: auto; }
+.songnav { margin-right: auto; }
+/* round icon buttons: back, again, next */
+.round { width: 34px; height: 34px; border-radius: 50%; padding: 0; display: inline-grid; place-items: center; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--seam-dark); color: var(--ink-strong); box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.round svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.round:focus-visible { outline: 2px solid var(--green-soft); outline-offset: 2px; }
+.round:active { transform: translateY(1px); }
+/* mic pill: grey dot + MIC when off; a green sensitivity bar inside it when listening */
+.micpill { display: inline-flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 0 4px 0 4px; box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05); }
+.micpill .mic { font: inherit; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); background: none; border: 0; padding: 6px 10px; cursor: pointer; }
+.micpill #sens { display: none; width: 110px; margin-left: 10px; }
+.listening .micpill #sens { display: block; }
+.listening .micpill .mic { color: var(--ink-strong); padding-left: 0; }
+.listening .micpill .dot { display: none; }
 .title { font-size: 14px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink); font-weight: 600; margin-right: auto; }
 .sound {
   font: inherit; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink);
@@ -60,7 +78,7 @@ body {
 .listening .meter { display: inline-block; }
 .sens { display: none; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
 .listening .sens { display: inline-flex; }
-.sens input { width: 100px; accent-color: var(--green); }
+#sens { accent-color: var(--green); }
 .mic { display: inline-flex; align-items: center; gap: 8px; }
 .mic .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--seam-dark); transition: background .2s, box-shadow .2s, transform .08s; }
 .mic[aria-pressed="true"] .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
@@ -69,6 +87,8 @@ body {
 /* the line under the staff: what was heard, plus the streak */
 .status { width: 100%; display: flex; align-items: center; gap: 14px; min-height: 30px; font-size: 22px; }
 .heard { margin-right: auto; }
+.status .sound { font-size: 11px; padding: 5px 10px; }
+.meter, .listening .meter { display: none; }
 .heard b { font-weight: 700; }
 .heard .yes { color: var(--green); }
 .heard .no { color: var(--red); }
@@ -138,10 +158,10 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 </head>
 <body>
 <main class="stage">
+  <div class="titlebar"><span class="title">🔥🚸🌭</span></div>
   <div class="topline">
-    <span class="title">Read the note</span>
-    <label class="pick">Song <select id="songSel" aria-label="Song list"></select></label>
-    <label class="pick" id="partPick" hidden>Part <select id="partSel" aria-label="Part of the song"></select></label>
+    <label class="pick"><select id="songSel" aria-label="Song list"></select></label>
+    <label class="pick" id="partPick" hidden><select id="partSel" aria-label="Part of the song"></select></label>
     <span class="seg" id="clefs" role="group" aria-label="Clef">
       <button data-v="treble">Treble</button>
       <button data-v="bass">Bass</button>
@@ -152,10 +172,18 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       <button data-v="4">4 octaves</button>
       <button data-v="all">All 88 keys</button>
     </span>
-    <button id="hear" class="sound" hidden>Hear it</button>
-    <button id="help" class="sound">Help</button>
-    <button id="letters" class="sound" aria-pressed="true">Letters</button>
-    <button id="mic" class="sound mic" aria-pressed="false"><span class="dot"></span>Listen</button>
+    <button id="hear" class="sound" hidden>Play it</button>
+    <span class="songnav" id="songNav" hidden>
+      <button id="back" class="round" aria-label="Back" title="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+      <button id="again" class="round" aria-label="Again" title="Again"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4.5H15"/></svg></button>
+      <button id="next" class="round" aria-label="Next" title="Next"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      <button id="auto" class="sound" aria-pressed="true" title="When a line or section is finished, go on to the next one">Auto</button>
+      <span id="where" hidden></span>
+    </span>
+    <span class="micpill" id="micPill">
+      <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5" aria-label="Microphone sensitivity" title="Sensitivity">
+      <button id="mic" class="mic" aria-pressed="false"><span class="dot"></span>Mic</button>
+    </span>
     <button id="sound" class="sound" aria-pressed="true">Sound on</button>
     <span id="soundMsg" class="sound-msg" role="status" hidden></span>
   </div>
@@ -166,8 +194,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 
   <div class="status">
     <span class="heard" id="heard" role="status" aria-live="polite"></span>
-    <span class="songnav" id="songNav" hidden><span id="where"></span><button id="back" class="sound">Back</button><button id="again" class="sound">Again</button><button id="next" class="sound">Next</button><button id="auto" class="sound" aria-pressed="true" title="When a part is finished, go on to the next one">Auto next</button></span>
-    <label class="sens">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+    <button id="help" class="sound">Help</button>
+    <button id="letters" class="sound" aria-pressed="true">Letters</button>
     <span class="meter" id="meter" aria-hidden="true"><span id="meterFill"></span></span>
     <span class="streak">In a row<b id="streak">0</b></span>
   </div>
@@ -641,7 +669,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     heardEl.textContent = '';
     drawSong();
   }
-  // "Hear it": play the line at the song's tempo, lighting each note as it sounds.
+  // "Play it": play the line at the song's tempo, lighting each note as it sounds.
   function stopPlaying() { playTimers.forEach(clearTimeout); playTimers = []; notesG && notesG.querySelectorAll('.playing').forEach((g) => g.classList.remove('playing')); }
   function hearIt() {
     stopPlaying();
@@ -1030,7 +1058,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       mic = { stream, ctx: c, an, buf: new Float32Array(4096), sr: c.sampleRate, candF: null, stable: 0, lo: 0, hi: 0, hist: [0, 0, 0], window: 0, quietFor: 0 };
       mic.timer = setInterval(listen, 16);
       micBtn.setAttribute('aria-pressed', 'true');
-      micBtn.lastChild.textContent = 'Listening';
+      micBtn.lastChild.textContent = 'Mic';
       document.body.classList.add('listening');
       heardEl.classList.remove('err');
       heardEl.textContent = 'Play a note on your piano';
@@ -1057,9 +1085,9 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
       text = 'No microphone was found on this device.';
     } else if (name === 'NotReadableError' || name === 'AbortError') {
-      text = 'Another app is using the microphone. Close it (or end the call) and tap Listen again.';
+      text = 'Another app is using the microphone. Close it (or end the call) and tap Mic again.';
     } else {
-      text = 'Couldn\'t start the microphone (' + name + '). Reload the page and tap Listen again.';
+      text = 'Couldn\'t start the microphone (' + name + '). Reload the page and tap Mic again.';
     }
     heardEl.textContent = text;
     heardEl.classList.add('err');
@@ -1073,7 +1101,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     meterFill.style.width = '0%';
     mic = null;
     micBtn.setAttribute('aria-pressed', 'false');
-    micBtn.lastChild.textContent = 'Listen';
+    micBtn.lastChild.textContent = 'Mic';
     document.body.classList.remove('listening');
     micDot.style.transform = '';
     heardEl.textContent = '';
@@ -1089,7 +1117,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     meterFill.style.width = (lvl * 100).toFixed(0) + '%';
     if (rms < 0.0005) {
       mic.quietFor++;
-      if (mic.quietFor === 190 && !heardEl.querySelector('b')) heardEl.textContent = 'The microphone isn\'t picking up any sound. Check nothing is covering it, then tap Listen off and on.';
+      if (mic.quietFor === 190 && !heardEl.querySelector('b')) heardEl.textContent = 'The microphone isn\'t picking up any sound. Check nothing is covering it, then turn Mic off and on.';
     } else mic.quietFor = 0;
     // Only count a note just after a fresh key strike: a sharp jump in loudness opens a
     // short window. Ringing strings and the tail of the last note never jump, so they're ignored.
