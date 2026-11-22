@@ -513,7 +513,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     return parts;
   }
 
-  let song = null, parts = [], partIdx = 0, songLine = 0, playTimers = [];
+  let song = null, parts = [], partIdx = 0, songLine = 0;
   const G = {
     black: 'M97 -125C186 -125 295 -43 295 42C295 93 255 125 198 125C88 125 0 44 0 -42C0 -94 43 -125 97 -125Z', half: 'M97 -125C262 -125 295 9 295 42C295 93 254 125 196 125C47 125 0 10 0 -42C0 -95 42 -125 97 -125ZM75 -87C54 -87 42 -76 35 -64C32 -58 29 -51 29 -44C29 5 174 84 221 84C240 84 251 75 258 63C261 57 264 51 264 44C264 1 123 -87 75 -87Z', up: 'M238 -790C238 -790 264 -695 264 -617C264 -492 212 -374 149 -274C98 -195 56 -109 40 -13C37 3 29 9 19 9C8 9 0 6 0 -6V-245C66 -257 161 -393 197 -478C212 -512 221 -569 221 -628C221 -673 214 -720 197 -765C195 -771 194 -776 194 -780C194 -796 204 -805 210 -809C216 -813 233 -807 238 -790Z', down: 'M240 760C254 718 261 668 261 623C261 564 236 480 221 446C184 362 134 281 0 236V1C0 -9 8 -14 16 -14C25 -14 38 -8 40 8C57 103 131 190 182 269C245 368 306 487 306 612C306 690 286 761 278 793C275 804 269 808 262 808C247 808 230 789 240 760Z',
     rq: 'M78 -38C94 -58 108 -77 121 -98C123 -102 127 -110 127 -112C127 -113 127 -115 126 -116C124 -120 120 -121 115 -121C111 -121 103 -119 99 -118C98 -118 96 -118 95 -118L87 -115C35 -115 1 -162 1 -211C1 -261 44 -310 117 -366C125 -372 135 -375 143 -375C150 -375 157 -373 158 -369C159 -366 160 -364 160 -362C160 -353 152 -345 144 -338C131 -338 120 -311 118 -302C115 -294 114 -285 114 -276C114 -235 135 -203 177 -203C206 -203 239 -214 256 -220L257 -221C261 -222 263 -222 265 -222C268 -222 270 -221 270 -218C270 -206 244 -173 233 -161C195 -115 164 -78 164 -22C164 -21 164 -20 164 -19L165 -12C165 -11 165 -10 165 -9C169 49 205 97 231 138C234 143 235 148 235 153C235 163 231 172 231 172C231 172 83 348 66 365C61 370 54 373 48 373C38 373 28 366 28 352C28 347 29 342 32 336C36 325 93 274 93 202C93 165 78 122 33 75C23 65 19 54 19 46C19 32 29 22 29 22Z', r8: 'M134 107C134 144 104 174 67 174C30 174 0 144 0 107C0 86 12 68 27 56C43 45 62 39 81 39C95 39 109 42 120 46C134 50 143 54 156 61C158 62 160 62 161 62C165 62 166 58 166 53C166 50 166 46 165 42C162 27 90 -172 72 -238C72 -250 95 -251 101 -251C112 -251 126 -249 136 -241C139 -239 237 112 237 112C241 130 246 146 247 151C247 161 237 166 235 167C233 167 230 167 224 163C217 157 167 97 134 97Z', rw: 'M282 -109V-17C282 -2 270 9 256 9H26C11 9 0 -2 0 -17V-109C0 -123 11 -135 26 -135H256C270 -135 282 -123 282 -109Z', dot: 'M100 0C100 28 78 50 50 50C22 50 0 28 0 0C0 -28 22 -50 50 -50C78 -50 100 -28 100 0Z',
@@ -672,42 +672,100 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   }
   // "Play it": play the whole chosen part (one line, a section or the whole song) at the
   // song's tempo, lighting each note as it sounds. The staff turns to each next line by itself.
+  // The whole part is rendered into one audio clip up front and played by a single <audio>
+  // element, so the timing is exact (iPad timers and per-note players made it choppy). The
+  // screen follows the clip's own clock.
   const hearBtn = document.getElementById('hear');
+  const clipPlayer = new Audio();
+  clipPlayer.setAttribute('playsinline', '');
+  let playing = null; // { timeline, lineStarts, end, raf }
   function stopPlaying() {
-    playTimers.forEach(clearTimeout); playTimers = [];
+    if (playing) { cancelAnimationFrame(playing.raf); playing = null; }
+    clipPlayer.pause();
+    busyUntil = 0;
     notesG && notesG.querySelectorAll('.playing').forEach((g) => g.classList.remove('playing'));
     hearBtn.textContent = 'Play it';
   }
+  // Build the timeline for lines from..to: every sounding note with its start and length in seconds.
+  function partTimeline(from, to) {
+    const notes = [], lineStarts = [];
+    let t = 0;
+    for (let L = from; L <= to; L++) {
+      lineStarts.push(t);
+      const events = song.parsed[L];
+      events.forEach((e, i) => {
+        if (!e.rest && !e.tiedFrom) {
+          let len = e.beats;
+          for (let j = i; events[j].tie && events[j + 1]; j++) len += events[j + 1].beats;
+          notes.push({ line: L, i, midi: e.midi, start: t, len: len * song.eighth });
+        }
+        t += e.beats * song.eighth;
+      });
+    }
+    return { notes, lineStarts, end: t };
+  }
+  // Render the notes into a mono 16-bit WAV (same soft piano-ish tone as single notes).
+  function renderClip(notes, end) {
+    const sr = 16000, len = Math.ceil(sr * (end + 1.2));
+    const mix = new Float32Array(len);
+    notes.forEach((n) => {
+      const f = 2 * Math.PI * 440 * Math.pow(2, (n.midi - 69) / 12) / sr;
+      const ring = Math.max(.4, n.len * 1.1), rel = .06;
+      const i0 = Math.round(n.start * sr), cnt = Math.min(len - i0, Math.round((ring + rel) * sr));
+      for (let k = 0; k < cnt; k++) {
+        const t = k / sr;
+        let env = Math.min(1, t * 120) * Math.exp(-t * 3.2);
+        if (t > ring) env *= 1 - (t - ring) / rel; // short fade so notes don't click off
+        const x = Math.sin(f * k) + .3 * Math.sin(2 * f * k) + .1 * Math.sin(3 * f * k);
+        mix[i0 + k] += x * env * .4;
+      }
+    });
+    const buf = new ArrayBuffer(44 + len * 2), v = new DataView(buf);
+    const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + len * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true);
+    v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, len * 2, true);
+    for (let i = 0; i < len; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, mix[i])) * 32767, true);
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return 'data:audio/wav;base64,' + btoa(bin);
+  }
   function hearIt() {
-    if (playTimers.length) { stopPlaying(); return; } // tapping again stops it
+    if (playing) { stopPlaying(); return; } // tapping again stops it
     const p = parts[partIdx];
     songLine = p.from; heardEl.textContent = ''; drawSong();
+    const tl = partTimeline(p.from, p.to);
+    clipPlayer.src = renderClip(tl.notes, tl.end);
+    clipPlayer.muted = !soundOn;
+    try { clipPlayer.currentTime = 0; } catch { /* not loaded yet */ }
+    playing = { ...tl, raf: 0, from: p.from, to: p.to };
     hearBtn.textContent = 'Stop';
-    playLine();
+    busyUntil = performance.now() + (tl.end + 1) * 1000; // don't "hear" our own speaker
+    clipPlayer.play().then(soundOk, () => { soundBlocked(); stopPlaying(); });
+    follow();
   }
-  function playLine() {
-    const p = parts[partIdx];
-    const events = song.parsed[songLine];
-    let t = 0;
-    events.forEach((e, i) => {
-      if (!e.rest && !e.tiedFrom) {
-        let len = e.beats;
-        for (let j = i; events[j].tie && events[j + 1]; j++) len += events[j + 1].beats;
-        tone(e.midi, t, Math.max(.4, len * song.eighth * 1.1), .22);
-        const g = e.g;
-        playTimers.push(setTimeout(() => g.classList.add('playing'), t * 1000));
-        playTimers.push(setTimeout(() => g.classList.remove('playing'), (t + len * song.eighth) * 1000 - 40));
-      }
-      t += e.beats * song.eighth;
-    });
-    playTimers.push(setTimeout(() => {
-      playTimers = [];
-      if (songLine < p.to) { songLine++; drawSong(); playLine(); return; }
+  // Each frame: turn the staff to the line being played and light the sounding notes.
+  function follow() {
+    const pl = playing;
+    if (!pl) return;
+    const t = clipPlayer.currentTime;
+    if (clipPlayer.ended || t >= pl.end + .3) {
       stopPlaying();
-      if (p.to > p.from) { songLine = p.from; drawSong(); } // back to the start, ready to play along
-    }, t * 1000));
+      if (pl.to > pl.from) { songLine = pl.from; drawSong(); } // back to the start, ready to play along
+      return;
+    }
+    let L = pl.from;
+    while (L < pl.to && t >= pl.lineStarts[L - pl.from + 1] - .02) L++;
+    if (L !== songLine) { songLine = L; drawSong(); }
+    const events = song.parsed[songLine];
+    pl.notes.forEach((n) => {
+      if (n.line !== songLine) return;
+      const g = events[n.i].g;
+      if (g) g.classList.toggle('playing', t >= n.start && t < n.start + n.len - .04);
+    });
+    pl.raf = requestAnimationFrame(follow);
   }
-
   // ---------- Keyboard: the same stretch of the piano as the notes ----------
   const keysSvg = document.getElementById('keys');
   const PX = 20, PY = 14, H = 300;
