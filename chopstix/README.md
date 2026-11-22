@@ -70,7 +70,7 @@ notes at a time; play the highlighted one on the real piano (tap **Mic**) or on 
 *Danny Boy* (F major, 4/4, one bar per line so the notes stay big) and *O Holy Night* (C major, 6/8), each transcribed from a lead sheet. A song is drawn in real note values
 (quarter, eighth and dotted notes, rests, ties, time signature) with the lyrics under it, one line of the
 printed page at a time. **Part** picks one line, a lettered section (several lines, played one after another)
-or the whole song. **Play it** plays the line at the song's tempo. **Back** and **Next** step a line (or a part) at a time, **Again** restarts the part,
+or the whole song. **Play it** plays the whole chosen part (a line, a section or the whole song) at the song's tempo, turning the staff to each next line as it goes; tap it again (Stop) to stop. **Back** and **Next** step a line (or a part) at a time, **Again** restarts the part,
 and **Auto next** (on by default) moves straight on to the next line or section when one is finished.
 Tied notes are played once. Songs live in the `SONGS` list in `read/index.html`, written as `pitch beats lyric`
 tokens (beats in eighth notes, `~` tie, `^` fermata, `r` rest). A song can set `key` (flats negative, sharps positive),
