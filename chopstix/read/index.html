@@ -19,6 +19,7 @@
   --red: #ff2b2b;
   --green: #16c060;
   --green-soft: rgba(22, 192, 96, .35);
+  --blue: #2f7cf6;
   --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
@@ -147,6 +148,9 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 .hit-in .hitfill { fill: var(--green); opacity: 1; transition: none; }
 .hit-out .hitfill { fill: var(--red); opacity: 1; transition: none; }
 .hit-in .ring, .hit-out .ring { fill: #fff !important; }
+/* tapping a note on the staff shows its key in blue (green and red mean right and wrong) */
+.shown .hitfill { fill: var(--blue); opacity: .85; transition: none; }
+.shown .ring { fill: #fff !important; }
 .press { opacity: 0; transition: opacity .3s; pointer-events: none; }
 .pressed .press, .hit-in .press, .hit-out .press { opacity: 1; transition: none; }
 /* help: the key to play gets a pulsing green outline */
@@ -341,7 +345,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       if (s === 0) { const m = el('text', { class: 'mid-c name', x, y: view.bottom - 12 }, g); m.textContent = 'Middle C'; }
       el('rect', { x: x - 85, y: view.top, width: 170, height: view.bottom - view.top, fill: 'transparent' }, g); // easy to tap
       const n = { s, c, midi: stepMidi(s), g };
-      g.addEventListener('pointerdown', () => tone(n.midi));
+      g.addEventListener('pointerdown', () => { tone(n.midi); showKey(n.midi); });
       return n;
     });
     if (old) {
@@ -606,7 +610,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
         if (t.textContent.length > 2) t.classList.add('small');
         el('rect', { x: nx - SP * .45, y: vTop, width: HEAD + SP * .9, height: vBottom - vTop, fill: 'transparent' }, g);
         const n = { s: e.s, midi: e.midi, g, label: t.textContent };
-        g.addEventListener('pointerdown', () => tone(n.midi));
+        g.addEventListener('pointerdown', () => { tone(n.midi); showKey(n.midi); });
         line.push(n);
       }
       e.x = nx; e.g = g;
@@ -755,6 +759,14 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     if (!k) return;
     k.g.classList.add(ok ? 'hit-in' : 'hit-out');
     hitTimer = setTimeout(() => k.g.classList.remove('hit-in', 'hit-out'), 900);
+  }
+
+  // Tapping a note on the staff lights up its key for a moment.
+  let showTimer = null;
+  function showKey(midi) {
+    clearTimeout(showTimer);
+    keyEls.forEach((x) => x.g.classList.toggle('shown', x.midi === midi));
+    showTimer = setTimeout(() => keyEls.forEach((x) => x.g.classList.remove('shown')), 1200);
   }
 
   // ---------- Buttons ----------
