@@ -1,58 +1,111 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Chopstix · Piano Basics</title>
-  <meta name="description" content="Learn the major scale, all 12 keys, and basic chords on a 3D piano.">
-  <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎹</text></svg>">
-  <script type="importmap">
-    { "imports": { "three": "./vendor/three.module.min.js" } }
-  </script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>🔥🚸🌭</title>
+<style>
+/* Home: one big tile per module. Same paper-white look as the module pages. */
+:root {
+  --surface: #f3f3f1; --panel: #fbfbfa; --seam: #dcdcd8; --seam-dark: #c9c9c4;
+  --ink: #9a9a95; --ink-strong: #55554f; --staff: #3a3a37; --green: #16c060;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--surface); color: var(--ink-strong); font-family: var(--font);
+  padding: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
+  -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
+}
+.stage { max-width: 1100px; margin: 0 auto; min-height: calc(100vh - 48px); display: flex; flex-direction: column; justify-content: center; gap: 4vh; }
+h1 { margin: 0; font-size: clamp(40px, 8vw, 76px); text-align: center; letter-spacing: .08em; font-weight: 400; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.tile {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px 18px 26px;
+  background: var(--panel); border: 1px solid var(--seam); border-radius: 26px; color: inherit; text-decoration: none;
+  box-shadow: inset 0 1px 0 #fff, 0 2px 6px rgba(0,0,0,.05); transition: transform .12s, box-shadow .12s;
+}
+.tile:active { transform: translateY(2px); box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05); }
+.tile:focus-visible { outline: 3px solid rgba(22,192,96,.35); outline-offset: 3px; }
+.tile svg { width: 100%; max-width: 240px; height: auto; aspect-ratio: 2 / 1; }
+.tile > div { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tile .name { font-size: 22px; letter-spacing: .22em; text-transform: uppercase; font-weight: 700; color: var(--ink-strong); }
+.tile .what { font-size: 16px; color: var(--ink); text-align: center; line-height: 1.35; }
+.tile .badge { position: absolute; top: 14px; right: 16px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--green); border-radius: 999px; padding: 4px 10px; font-weight: 700; }
+.tile.small { flex-direction: row; padding: 16px 22px; gap: 16px; justify-content: center; }
+.tile.small .name { font-size: 16px; }
+.tile.small .what { font-size: 14px; }
+.tile.soon { opacity: .5; pointer-events: none; border-style: dashed; box-shadow: none; }
+.more { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.ink { fill: var(--staff); } .line { stroke: var(--staff); stroke-width: 2.4; stroke-linecap: round; }
+@media (max-width: 760px) {
+  .tiles { grid-template-columns: 1fr; gap: 14px; }
+  .tile { flex-direction: row; padding: 16px 18px; gap: 16px; text-align: left; justify-content: flex-start; }
+  .tile svg { width: 120px; flex: none; }
+  .tile .what { text-align: left; font-size: 14px; }
+  .tile > div { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .more { grid-template-columns: 1fr; gap: 14px; }
+}
+</style>
 </head>
 <body>
-  <header class="top">
-    <div class="brand">🎹 Chopstix <span>Piano basics</span></div>
-    <nav id="lessonTabs" class="lesson-tabs" role="tablist" aria-label="Lessons">
-      <button role="tab"><b>1</b> Steps &amp; the major scale</button>
-      <button role="tab"><b>2</b> All 12 keys</button>
-      <button role="tab"><b>3</b> Chords</button>
-    </nav>
-  </header>
-
-  <section class="piano-wrap">
-    <div id="piano" class="piano"></div>
-    <div class="input-bar">
-      <button id="micBtn" class="btn mic">🎤 Listen to my piano</button>
-      <div class="meter-wrap" hidden><div id="meter" class="meter"></div></div>
-      <div class="heard-box">Last note: <span id="heard" class="heard">–</span></div>
-      <span id="micState" class="small-note"></span>
-      <span id="midiState" class="small-note"></span>
-      <span class="spacer"></span>
-      <label class="small-label">Key labels
-        <select id="labels" class="select">
-          <option value="names">Note names</option>
-          <option value="keys">Computer keys</option>
-          <option value="none">None</option>
-        </select>
-      </label>
-      <button id="soundHint" class="btn small primary">🔊 Tap to turn on sound</button>
-      <button id="soundBtn" class="btn small secondary" aria-pressed="false">🔊 Sound on</button>
-      <details class="help">
-        <summary>How do I answer?</summary>
-        <div class="help-body">
-          <p><b>Tap or click</b> the keys on the screen.</p>
-          <p><b>Computer keyboard:</b> the letters <kbd>A S D F G H J K</kbd> are white keys starting at C, and <kbd>W E T Y U</kbd> are the black keys. Pick “Computer keys” under Key labels to see them on the piano.</p>
-          <p><b>Your real piano:</b> press “Listen to my piano” and allow the microphone. Play one note at a time for best results. Chords work best if you play the notes one after another.</p>
-          <p><b>MIDI keyboard:</b> plug it in by USB (Chrome or Edge) and just play.</p>
-        </div>
-      </details>
-    </div>
-  </section>
-
-  <main id="lesson" class="lesson"></main>
-
-  <script type="module" src="src/main.js"></script>
+<main class="stage">
+  <h1>🔥🚸🌭</h1>
+  <nav class="tiles" aria-label="Modules">
+    <a class="tile" href="read/">
+      <span class="badge" id="readBadge" hidden></span>
+      <svg viewBox="0 0 200 100" aria-hidden="true">
+        <rect x="2" y="2" width="196" height="96" rx="14" fill="#fff" stroke="#dcdcd8"/>
+        <g class="line"><line x1="16" x2="184" y1="26" y2="26"/><line x1="16" x2="184" y1="38" y2="38"/><line x1="16" x2="184" y1="50" y2="50"/><line x1="16" x2="184" y1="62" y2="62"/><line x1="16" x2="184" y1="74" y2="74"/></g>
+        <ellipse cx="100" cy="56" rx="13" ry="9" class="ink" transform="rotate(-18 100 56)"/>
+        <ellipse cx="100" cy="56" rx="6" ry="3.6" fill="#fff" transform="rotate(-50 100 56)"/>
+      </svg>
+      <div><span class="name">Read</span>
+      <span class="what">One note at a time. Play it or say it, and level up.</span></div>
+    </a>
+    <a class="tile" href="play/">
+      <svg viewBox="0 0 200 100" aria-hidden="true">
+        <rect x="2" y="2" width="196" height="96" rx="14" fill="#fff" stroke="#dcdcd8"/>
+        <g class="line"><line x1="16" x2="184" y1="26" y2="26"/><line x1="16" x2="184" y1="38" y2="38"/><line x1="16" x2="184" y1="50" y2="50"/><line x1="16" x2="184" y1="62" y2="62"/><line x1="16" x2="184" y1="74" y2="74"/></g>
+        <g class="ink">
+          <ellipse cx="62" cy="68" rx="8" ry="6" transform="rotate(-20 62 68)"/><rect x="68" y="30" width="2.6" height="38"/>
+          <ellipse cx="98" cy="56" rx="8" ry="6" transform="rotate(-20 98 56)"/><rect x="104" y="20" width="2.6" height="36"/>
+          <ellipse cx="134" cy="44" rx="8" ry="6" transform="rotate(-20 134 44)"/><rect x="140" y="10" width="2.6" height="34"/>
+        </g>
+      </svg>
+      <div><span class="name">Play</span>
+      <span class="what">Songs line by line, with the words.</span></div>
+    </a>
+    <a class="tile" href="dial/">
+      <svg viewBox="0 0 200 100" aria-hidden="true">
+        <circle cx="100" cy="50" r="44" fill="#fbfbfa" stroke="#c9c9c4" stroke-width="2"/>
+        <circle cx="100" cy="50" r="30" fill="#fff" stroke="#dcdcd8"/>
+        <g fill="#c9c9c4"><circle cx="100" cy="12" r="3"/><circle cx="119" cy="17" r="3"/><circle cx="133" cy="31" r="3"/><circle cx="138" cy="50" r="3"/><circle cx="133" cy="69" r="3"/><circle cx="119" cy="83" r="3"/><circle cx="100" cy="88" r="3"/><circle cx="81" cy="83" r="3"/><circle cx="67" cy="69" r="3"/><circle cx="62" cy="50" r="3"/><circle cx="67" cy="31" r="3"/><circle cx="81" cy="17" r="3"/></g>
+        <circle cx="100" cy="12" r="5" fill="#16c060"/>
+        <text x="100" y="58" text-anchor="middle" font-size="24" font-weight="600" fill="#16c060" font-family="system-ui, sans-serif">C</text>
+      </svg>
+      <div><span class="name">Scale dial</span>
+      <span class="what">Turn the dial to see each major scale.</span></div>
+    </a>
+  </nav>
+  <div class="more">
+    <a class="tile small" href="lessons/"><span class="name">Lessons</span><span class="what">Steps, keys and chords on a 3D piano</span></a>
+    <span class="tile small soon"><span class="name">Rhythm</span><span class="what">Coming later</span></span>
+  </div>
+</main>
+<script>
+  // Show how far he's got in Read on its tile.
+  try {
+    const p = JSON.parse(localStorage.getItem('read-game') || 'null');
+    if (p && p.unlocked > 0) {
+      const b = document.getElementById('readBadge');
+      b.textContent = 'Level ' + (p.level || p.unlocked);
+      b.hidden = false;
+    }
+  } catch { /* private mode */ }
+</script>
 </body>
 </html>
