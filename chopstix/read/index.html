@@ -91,7 +91,7 @@ body {
 /* the line under the staff: only shown for microphone problems (no running feedback) */
 .status { display: none; }
 /* fixed grid rows so the staff and keys keep their sizes when the status line is hidden */
-.staff-wrap { grid-row: 3; } .status { grid-row: 4; } .keys-wrap { grid-row: 5; }
+.topline { grid-row: 2; } .staff-wrap { grid-row: 3; } .status { grid-row: 4; } .keys-wrap { grid-row: 5; }
 .status:has(.err) { width: 100%; display: flex; align-items: center; gap: 14px; min-height: 30px; font-size: 22px; }
 .heard { margin-right: auto; }
 .status .sound { font-size: 11px; padding: 5px 10px; }
@@ -159,6 +159,39 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 .target .ring { stroke: var(--green); }
 .target .lbl { fill: var(--green); }
 @keyframes aim { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+/* Phones: the toolbar wraps onto centred rows instead of running off the side, and the
+   margins, title and controls shrink so the staff and keys keep as much room as they can. */
+@media (max-width: 900px) {
+  body { padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px)); }
+  .stage { padding-block: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-bottom, 0px)); gap: 8px; }
+  .titlebar .title { font-size: 20px; }
+  .topline { flex-wrap: wrap; justify-content: center; gap: 8px; row-gap: 6px; }
+  .micpill { margin-left: 0; }
+  .songnav { margin-right: 0; }
+  .seg button { white-space: nowrap; padding: 5px 9px; font-size: 11px; }
+  .sound, .micpill .mic { font-size: 11px; letter-spacing: .06em; padding-left: 9px; padding-right: 9px; }
+  .songnav { gap: 6px; }
+  .pick { min-width: 0; }
+  .pick select { max-width: 100%; }
+  #partPick { flex: 1 1 130px; max-width: 220px; }
+  #partPick select { width: 100%; text-overflow: ellipsis; }
+}
+/* Phone held upright: stack everything at its natural size, centred, instead of stretching
+   the rows apart (the staff and keys are limited by the narrow width anyway). */
+@media (max-width: 600px) and (orientation: portrait) {
+  .stage { grid-template-rows: auto auto auto 0 auto; align-content: start; gap: 14px; }
+  #staff, #keys { width: 100%; height: auto; max-height: none; }
+}
+/* Phone held sideways: very little height, so put everything on the toolbar row. */
+@media (max-width: 900px) and (max-height: 500px) {
+  .stage { grid-template-rows: 0 auto minmax(0, 62fr) auto minmax(0, 38fr); gap: 6px; }
+  .titlebar { display: none; }
+  .round { width: 30px; height: 30px; }
+  #partPick { max-width: 160px; }
+  .seg button { letter-spacing: .04em; padding: 5px 8px; }
+  .pick select { padding: 5px 8px; }
+  .sound, .micpill .mic { padding-top: 4px; padding-bottom: 4px; }
+}
 @media (prefers-reduced-motion: reduce) { .note.shake { animation: none; } .target .aim { animation: none; opacity: 1; } }
 </style>
 </head>
