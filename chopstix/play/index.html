@@ -1,0 +1,1293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>🔥🚸🌭</title>
+<style>
+/* Big-print sight reading: a large staff (treble, bass or both) on top, the piano keys right below it. Same look as the scale dial. */
+:root {
+  --surface: #f3f3f1;
+  --panel: #fbfbfa;
+  --seam: #dcdcd8;
+  --seam-dark: #c9c9c4;
+  --ink: #9a9a95;
+  --ink-strong: #55554f;
+  --staff: #3a3a37;
+  --red: #ff2b2b;
+  --green: #16c060;
+  --green-soft: rgba(22, 192, 96, .35);
+  --blue: #2f7cf6;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--surface);
+  color: var(--ink-strong);
+  font-family: var(--font);
+  overflow: hidden;
+  padding-left: max(24px, env(safe-area-inset-left, 0px));
+  padding-right: max(24px, env(safe-area-inset-right, 0px));
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+/* Built for an iPad held sideways: everything fits one screen, no scrolling. */
+.stage {
+  height: 100%; max-width: 1280px; margin: 0 auto;
+  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
+  display: grid; grid-template-rows: auto auto minmax(0, 62fr) auto minmax(0, 34fr); gap: 1.4vh;
+  justify-items: center;
+}
+.titlebar { width: 100%; }
+.titlebar .title { font-size: 26px; letter-spacing: .08em; }
+.topline { width: 100%; display: flex; align-items: center; gap: 10px; }
+/* Mic and Sound always sit at the right end, in random practice and in songs */
+.micpill { margin-left: auto; }
+/* back/again/next sit in the middle of the page, with Again exactly at the centre (Auto hangs off the right) */
+.topline { position: relative; }
+.songnav { position: absolute; left: 50%; transform: translateX(calc(-34px - 8px - 17px)); }
+@media (max-width: 1000px) { .songnav { position: static; transform: none; margin-right: auto; } }
+/* round icon buttons: back, again, next */
+.round { width: 34px; height: 34px; border-radius: 50%; padding: 0; display: inline-grid; place-items: center; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--seam-dark); color: var(--ink-strong); box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.round svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.round:focus-visible { outline: 2px solid var(--green-soft); outline-offset: 2px; }
+.round:active { transform: translateY(1px); }
+/* mic pill: grey dot + MIC when off; a green sensitivity bar inside it when listening */
+.micpill { display: inline-flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 0 4px 0 4px; box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05); }
+.micpill .mic { font: inherit; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); background: none; border: 0; padding: 6px 10px; cursor: pointer; }
+.micpill #sens { display: none; width: 110px; margin-left: 10px; }
+.listening .micpill #sens { display: block; }
+.listening .micpill .mic { color: var(--ink-strong); padding-left: 0; }
+.listening .micpill .dot { display: none; }
+.title { font-size: 14px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink); font-weight: 600; margin-right: auto; }
+.sound {
+  font: inherit; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05);
+}
+.sound[aria-pressed="true"] { color: var(--ink-strong); }
+.sound:focus-visible, .seg button:focus-visible { outline: 2px solid var(--green-soft); outline-offset: 3px; }
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 2px; box-shadow: inset 0 1px 0 #fff; }
+.seg button { font: inherit; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); background: none; border: 0; border-radius: 999px; padding: 5px 11px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink-strong); color: #fff; }
+.meter { display: none; width: 72px; height: 6px; border-radius: 3px; background: var(--seam); overflow: hidden; }
+.meter span { display: block; height: 100%; width: 0%; background: var(--green); transition: width .06s linear; }
+.listening .meter { display: inline-block; }
+.sens { display: none; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+.listening .sens { display: inline-flex; }
+#sens { accent-color: var(--green); }
+.mic { display: inline-flex; align-items: center; gap: 8px; }
+.mic .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--seam-dark); transition: background .2s, box-shadow .2s, transform .08s; }
+.mic[aria-pressed="true"] .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.sound-msg { display: none; }
+
+/* the line under the staff: only shown for microphone problems (no running feedback) */
+.status { display: none; }
+/* fixed grid rows so the staff and keys keep their sizes when the status line is hidden */
+.topline { grid-row: 2; } .staff-wrap { grid-row: 3; } .status { grid-row: 4; } .keys-wrap { grid-row: 5; }
+.status:has(.err) { width: 100%; display: flex; align-items: center; gap: 14px; min-height: 30px; font-size: 22px; }
+.heard { margin-right: auto; }
+.status .sound { font-size: 11px; padding: 5px 10px; }
+.meter, .listening .meter { display: none; }
+.heard b { font-weight: 700; }
+.heard .yes { color: var(--green); }
+.heard .no { color: var(--red); }
+.heard.err { color: var(--red); font-size: 15px; line-height: 1.35; max-width: 760px; }
+
+svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; width: auto; height: 100%; }
+#staff { width: 100%; }
+.staff-wrap, .keys-wrap { width: 100%; min-height: 0; display: flex; justify-content: center; align-items: center; }
+.paper { fill: #fff; stroke: var(--seam); }
+.line { stroke: var(--staff); stroke-width: 3.2; stroke-linecap: round; }
+.clef { fill: var(--staff); }
+.note { cursor: pointer; transition: opacity .25s; }
+.note .head { fill: var(--staff); transition: fill .2s; }
+.note .ledger { stroke: var(--staff); stroke-width: 3.2; stroke-linecap: round; }
+.note .octave { font-family: var(--font); font-style: italic; font-weight: 700; font-size: 34px; text-anchor: middle; fill: var(--staff); }
+.note.done .octave { fill: var(--green); }
+.mid-c { font-family: var(--font); font-size: 15px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; fill: var(--ink-strong); text-anchor: middle; }
+.note .name { font-family: var(--font); font-weight: 700; font-size: 46px; text-anchor: middle; fill: var(--green); opacity: 0; transition: opacity .25s; }
+.note .spot { fill: var(--green); opacity: 0; transition: opacity .25s; }
+.note.later { opacity: .28; }
+.note.now .spot { opacity: .1; }
+.note.done .head { fill: var(--green); }
+.note.done .ledger { stroke: var(--green); }
+.note.done .name, .note.hint .name { opacity: 1; }
+.note.miss .head { fill: var(--red); }
+.note.shake { animation: shake .35s; }
+@keyframes shake { 20%, 60% { transform: translateX(-9px); } 40%, 80% { transform: translateX(9px); } }
+
+.pick { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+.pick select { font: inherit; font-size: 14px; letter-spacing: 0; text-transform: none; color: var(--ink-strong); background: var(--panel); border: 1px solid var(--seam); border-radius: 999px; padding: 5px 10px; max-width: 220px; }
+.pick select:focus-visible { outline: 2px solid var(--green-soft); outline-offset: 2px; }
+.songmode #clefs, .songmode #ranges { display: none; }
+.songnav { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
+.songnav[hidden], .pick[hidden], .sound[hidden] { display: none; }
+/* no white top highlight on the dark "on" state: it read as a pill drawn off-center */
+#auto[aria-pressed="true"] { background: var(--ink-strong); color: #fff; border-color: var(--ink-strong); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.ink { fill: var(--staff); }
+.stem { fill: var(--staff); transition: fill .2s; }
+.bar { stroke: var(--staff); stroke-width: 3; }
+.tie { fill: var(--staff); }
+.lyric { font-family: Georgia, "Times New Roman", serif; font-size: 34px; text-anchor: middle; fill: var(--ink-strong); }
+.note.song.later { opacity: .55; }
+.note.done .stem, .note.done .tie, .note.done .head { fill: var(--green); }
+.note.done .lyric { fill: var(--green); }
+.note .name.small { font-size: 30px; }
+.note.playing .head, .note.playing .stem { fill: var(--green); }
+.key { cursor: pointer; }
+.lbl { font-family: var(--font); font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+.hitfill { opacity: 0; transition: opacity .35s; pointer-events: none; }
+.hit-in .hitfill { fill: var(--green); opacity: 1; transition: none; }
+.hit-out .hitfill { fill: var(--red); opacity: 1; transition: none; }
+.hit-in .ring, .hit-out .ring { fill: #fff !important; }
+/* tapping a note on the staff shows its key in blue (green and red mean right and wrong) */
+.shown .hitfill { fill: var(--blue); opacity: .85; transition: none; }
+.shown .ring { fill: #fff !important; }
+.press { opacity: 0; transition: opacity .3s; pointer-events: none; }
+.pressed .press, .hit-in .press, .hit-out .press { opacity: 1; transition: none; }
+/* help: the key to play gets a pulsing green outline */
+.aim { opacity: 0; fill: none; stroke: var(--green); stroke-width: 6; pointer-events: none; }
+.target .aim { animation: aim 1.1s ease-in-out infinite; }
+.target .ring { stroke: var(--green); }
+.target .lbl { fill: var(--green); }
+@keyframes aim { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+/* Phones: the toolbar wraps onto centred rows instead of running off the side, and the
+   margins, title and controls shrink so the staff and keys keep as much room as they can. */
+@media (max-width: 900px) {
+  body { padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px)); }
+  .stage { padding-block: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-bottom, 0px)); gap: 8px; }
+  .titlebar .title { font-size: 20px; }
+  .topline { flex-wrap: wrap; justify-content: center; gap: 8px; row-gap: 6px; }
+  .micpill { margin-left: 0; }
+  .songnav { margin-right: 0; }
+  .seg button { white-space: nowrap; padding: 5px 9px; font-size: 11px; }
+  .sound, .micpill .mic { font-size: 11px; letter-spacing: .06em; padding-left: 9px; padding-right: 9px; }
+  .songnav { gap: 6px; }
+  .pick { min-width: 0; }
+  .pick select { max-width: 100%; }
+  #partPick { flex: 1 1 130px; max-width: 220px; }
+  #partPick select { width: 100%; text-overflow: ellipsis; }
+}
+/* Phone held upright: stack everything at its natural size, centred, instead of stretching
+   the rows apart (the staff and keys are limited by the narrow width anyway). */
+@media (max-width: 600px) and (orientation: portrait) {
+  .stage { grid-template-rows: auto auto auto 0 auto; align-content: start; gap: 14px; }
+  #staff, #keys { width: 100%; height: auto; max-height: none; }
+}
+/* Phone held sideways: very little height, so put everything on the toolbar row. */
+@media (max-width: 900px) and (max-height: 500px) {
+  .stage { grid-template-rows: 0 auto minmax(0, 62fr) auto minmax(0, 38fr); gap: 6px; }
+  .titlebar { display: none; }
+  .round { width: 30px; height: 30px; }
+  #partPick { max-width: 160px; }
+  .seg button { letter-spacing: .04em; padding: 5px 8px; }
+  .pick select { padding: 5px 8px; }
+  .sound, .micpill .mic { padding-top: 4px; padding-bottom: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .note.shake { animation: none; } .target .aim { animation: none; opacity: 1; } }
+</style>
+<link rel="stylesheet" href="../app.css">
+</head>
+<body>
+<main class="stage">
+  <div class="titlebar"><span class="title">🔥🚸🌭</span><span class="module">Play</span></div>
+  <div class="topline">
+    <a class="home" href="../" aria-label="Home" title="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4.5l8 7M6.5 9.8V19.5h11V9.8"/></svg></a>
+    <label class="pick"><select id="songSel" aria-label="Song list"></select></label>
+    <button id="hear" class="sound" hidden>Play it</button>
+    <label class="pick" id="partPick" hidden><select id="partSel" aria-label="Part of the song"></select></label>
+    <span class="songnav" id="songNav" hidden>
+      <button id="back" class="round" aria-label="Back" title="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+      <button id="again" class="round" aria-label="Again" title="Again"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4.5H15"/></svg></button>
+      <button id="next" class="round" aria-label="Next" title="Next"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      <button id="auto" class="sound" aria-pressed="true" title="When a line or section is finished, go on to the next one">Auto</button>
+      <span id="where" hidden></span>
+    </span>
+    <span class="micpill" id="micPill">
+      <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5" aria-label="Microphone sensitivity" title="Sensitivity">
+      <button id="mic" class="mic" aria-pressed="false"><span class="dot"></span>Mic</button>
+    </span>
+    <button id="sound" class="sound" aria-pressed="true">Sound on</button>
+    <span id="soundMsg" class="sound-msg" role="status" hidden></span>
+  </div>
+
+  <div class="staff-wrap">
+    <svg id="staff" viewBox="0 0 1200 480" role="img" aria-label="Music staff"></svg>
+  </div>
+
+  <div class="status">
+    <span class="heard" id="heard" role="status" aria-live="polite"></span>
+    <span class="meter" id="meter" aria-hidden="true"><span id="meterFill"></span></span>
+  </div>
+
+  <div class="keys-wrap">
+    <svg id="keys" viewBox="0 0 1200 350" role="img" aria-label="Piano keys"></svg>
+  </div>
+</main>
+
+<script>
+(() => {
+  const SHARP_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+  const FLAT_NAMES = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
+  let NAMES = SHARP_NAMES; // a song in a flat key switches the black keys to flat names
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs = {}, parent) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+
+  // ---------- Staff ----------
+  // Glyphs from the Bravura music font (SIL Open Font License), in font units: 250 units = one staff space.
+  const G_CLEF = 'M376 415C374 427 376 428 382 434C490 535 572 662 572 815C572 902 548 988 507 1048C492 1070 466 1098 455 1098C441 1098 410 1072 390 1050C316 968 292 843 292 739C292 681 299 616 306 575C308 563 309 561 297 551C153 432 0 289 0 87C0 -87 119 -252 364 -252C387 -252 413 -250 433 -246C444 -244 446 -243 448 -255C460 -322 475 -409 475 -456C475 -604 375 -622 316 -622C262 -622 236 -606 236 -593C236 -586 245 -583 268 -576C299 -567 335 -540 335 -482C335 -427 300 -380 239 -380C172 -380 132 -433 132 -495C132 -560 171 -658 322 -658C389 -658 519 -628 519 -458C519 -401 501 -306 490 -244C488 -232 489 -233 503 -227C604 -187 671 -102 671 11C671 139 577 252 430 252C404 252 404 252 401 270ZM470 943C503 943 530 916 530 861C530 750 435 660 356 591C349 585 345 586 343 599C339 625 337 659 337 691C337 847 409 943 470 943ZM361 262C364 243 364 244 346 238C258 208 201 129 201 44C201 -46 248 -110 316 -133C324 -136 336 -139 343 -139C351 -139 355 -134 355 -128C355 -121 347 -118 340 -115C298 -97 268 -54 268 -8C268 49 307 92 368 109C384 113 386 112 388 101L438 -197C440 -208 439 -208 424 -211C408 -214 388 -216 368 -216C193 -216 80 -119 80 20C80 79 90 158 173 252C233 319 279 356 326 394C336 402 338 401 340 390ZM430 103C428 115 429 118 441 117C522 110 589 42 589 -46C589 -109 551 -160 495 -188C483 -194 481 -194 479 -182Z';
+  const F_CLEF = 'M252 262C78 262 0 135 0 39C0 -41 42 -110 123 -110C186 -110 229 -66 229 -4C229 60 182 100 133 100C106 100 96 93 83 93C70 93 67 101 67 111C67 151 127 224 229 224C335 224 381 120 381 -37C381 -316 243 -472 10 -605C1 -610 -5 -615 -5 -623C-5 -629 -1 -635 8 -635C13 -635 19 -633 25 -630C271 -510 531 -332 531 -28C531 146 425 262 252 262ZM629 180C598 180 574 156 574 125C574 94 598 70 629 70C660 70 684 94 684 125C684 156 660 180 629 180ZM630 -71C599 -71 576 -94 576 -125C576 -156 599 -179 630 -179C661 -179 684 -156 684 -125C684 -94 661 -71 630 -71Z';
+  const WHOLE = 'M216 125C83 125 0 70 0 2C0 -65 57 -125 206 -125C370 -125 422 -68 422 2C422 73 309 125 216 125ZM111 63C122 98 159 103 190 103C259 103 314 29 314 -31C314 -62 301 -90 268 -98C258 -101 247 -102 237 -102C201 -102 164 -78 143 -50C123 -27 108 7 108 39C108 47 109 55 111 63Z';
+  const SP = 64;                 // one staff space in viewBox units (very large on purpose)
+  const FS = SP / 250;           // font units -> viewBox units
+  // Notes are counted in white-key steps from middle C: 0 = C4, 1 = D4 ... 7 = C5, -1 = B3, -7 = C3.
+  const WHITE_PCS = [0, 2, 4, 5, 7, 9, 11];
+  const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+  const mod7 = (s) => ((s % 7) + 7) % 7;
+  const stepMidi = (s) => 60 + 12 * Math.floor(s / 7) + WHITE_PCS[mod7(s)];
+  const midiName = (m) => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+  // How much of the piano: lowest and highest white-key step.
+  const RANGES = { 2: [-7, 7], 4: [-14, 14], all: [-23, 28] }; // C3–C5, C2–C6, A0–C8
+  let SLOTS = [420, 610, 800, 990], VW = 1200;
+
+  // Treble: top line F5 (step 10). Bass: top line A3 (step -2). In "both", bass sits below treble.
+  const TREBLE_TOP = 0, BASS_TOP_BOTH = 7 * SP;
+  let clef = 'treble', range = '2', lo = -7, hi = 7;
+  const staffTop = (c) => (c === 'bass' ? (clef === 'both' ? BASS_TOP_BOTH : 0) : TREBLE_TOP);
+  function yOf(c, s) { return c === 'treble' ? staffTop(c) + (10 - s) * SP / 2 : staffTop(c) + (-2 - s) * SP / 2; }
+  // Far-off notes are written an octave (or two) nearer, with 8va / 8vb, like real music.
+  function written(c, s) {
+    let d = s, mark = '';
+    if (c === 'treble') { if (d > 16) { d -= 7; mark = '8va'; } if (d > 16) { d -= 7; mark = '15ma'; } }
+    else { if (d < -16) { d += 7; mark = '8vb'; } if (d < -16) { d += 7; mark = '15mb'; } }
+    return { d, mark };
+  }
+  function clefFor(s) {
+    if (clef !== 'both') return clef;
+    if (s > 0) return 'treble';
+    if (s < 0) return 'bass';
+    return Math.random() < .5 ? 'treble' : 'bass'; // middle C: learn it in both places
+  }
+  const allowed = (s) => s >= lo && s <= hi && (clef === 'both' || (clef === 'treble' ? s >= 0 : s <= 0));
+
+  const staff = document.getElementById('staff');
+  let notesG = null, view = { top: 0, bottom: 0 };
+  function drawStaff() {
+    staff.textContent = '';
+    const clefs = clef === 'both' ? ['treble', 'bass'] : [clef];
+    // vertical room: staff lines, clefs, and every note that can come up in this mode
+    let top = Infinity, bottom = -Infinity;
+    const grow = (y0, y1) => { top = Math.min(top, y0); bottom = Math.max(bottom, y1); };
+    clefs.forEach((c) => {
+      grow(staffTop(c), staffTop(c) + 4 * SP);
+      if (c === 'treble') grow(yOf(c, 4) - 1098 * FS, yOf(c, 4) + 658 * FS);
+      else grow(yOf(c, -4) - 262 * FS, yOf(c, -4) + 635 * FS);
+    });
+    for (let s = lo; s <= hi; s++) {
+      if (!allowed(s)) continue;
+      clefs.forEach((c) => {
+        if (clef === 'both' && (c === 'treble' ? s < 0 : s > 0)) return;
+        const { d, mark } = written(c, s);
+        const y = yOf(c, d);
+        grow(y - SP / 2 - (mark && c === 'treble' ? SP * 1.3 : 0), y + SP / 2 + (mark && c === 'bass' ? SP * 1.3 : 0));
+      });
+    }
+    top -= 24; bottom += 80; // room for the letter under the notes
+    view = { top, bottom };
+    // Stretch the staff sideways to fill the space, so the notes can be as tall as possible.
+    const box = staff.parentNode.getBoundingClientRect();
+    const aspect = box.width > 0 && box.height > 0 ? box.width / box.height : 2.5;
+    VW = Math.max(900, Math.min(6000, (bottom - top) * aspect));
+    // four notes, spread out but kept close enough to read as one line
+    const first = 380, gap = Math.min(560, (VW - 140 - first) / 3);
+    SLOTS = [0, 1, 2, 3].map((i) => first + i * gap);
+    staff.setAttribute('viewBox', `0 ${top} ${VW} ${bottom - top}`);
+    el('rect', { class: 'paper', x: 0, y: top, width: VW, height: bottom - top, rx: 14 }, staff);
+    clefs.forEach((c) => {
+      const t = staffTop(c);
+      for (let i = 0; i < 5; i++) el('line', { class: 'line', x1: 30, x2: VW - 30, y1: t + i * SP, y2: t + i * SP }, staff);
+      if (c === 'treble') el('path', { class: 'clef', d: G_CLEF, transform: `translate(64 ${yOf(c, 4)}) scale(${FS} ${-FS})` }, staff);
+      else el('path', { class: 'clef', d: F_CLEF, transform: `translate(64 ${yOf(c, -4)}) scale(${FS} ${-FS})` }, staff);
+    });
+    const left = staffTop(clefs[0]), right = staffTop(clefs[clefs.length - 1]) + 4 * SP;
+    el('line', { class: 'line', x1: 30, x2: 30, y1: left, y2: right }, staff);
+    if (clef === 'both') {
+      // brace-like bar joining the grand staff
+      el('rect', { x: 14, y: left, width: 9, height: right - left, rx: 4, fill: 'var(--staff)' }, staff);
+    }
+    notesG = el('g', {}, staff);
+  }
+
+  let line = [], at = 0, misses = 0, last = null;
+  function pick() {
+    let s, tries = 0;
+    do {
+      // mostly small steps from the last note, like real beginner music; sometimes a jump
+      s = last != null && Math.random() < .7 && tries < 40
+        ? last + Math.round((Math.random() * 2 - 1) * 3)
+        : lo + Math.floor(Math.random() * (hi - lo + 1));
+      tries++;
+    } while (!allowed(s) || (s === last && tries < 200));
+    last = s;
+    return s;
+  }
+  function ledgers(g, c, d, x) {
+    const t = staffTop(c), b = t + 4 * SP;
+    for (let y = t - SP; y >= yOf(c, d) - 1; y -= SP) el('line', { class: 'ledger', x1: x - 76, x2: x + 76, y1: y, y2: y }, g);
+    for (let y = b + SP; y <= yOf(c, d) + 1; y += SP) el('line', { class: 'ledger', x1: x - 76, x2: x + 76, y1: y, y2: y }, g);
+  }
+  function newLine(keep) {
+    notesG.textContent = '';
+    const old = keep ? line : null;
+    line = SLOTS.map((x, i) => {
+      const s = old ? old[i].s : pick();
+      const c = old ? old[i].c : clefFor(s);
+      const { d, mark } = written(c, s);
+      const y = yOf(c, d);
+      const g = el('g', { class: 'note' }, notesG);
+      el('rect', { class: 'spot', x: x - 85, y: view.top + 12, width: 170, height: view.bottom - view.top - 24, rx: 18 }, g);
+      ledgers(g, c, d, x);
+      el('path', { class: 'head', d: WHOLE, transform: `translate(${x - 211 * FS} ${y}) scale(${FS} ${-FS})` }, g);
+      if (mark) {
+        const o = el('text', { class: 'octave', x, y: c === 'treble' ? y - SP * 1.05 : y + SP * 1.45 }, g);
+        o.textContent = mark;
+      }
+      const t = el('text', { class: 'name', x, y: view.bottom - 36 }, g);
+      t.textContent = LETTERS[mod7(s)];
+      if (s === 0) { const m = el('text', { class: 'mid-c name', x, y: view.bottom - 12 }, g); m.textContent = 'Middle C'; }
+      el('rect', { x: x - 85, y: view.top, width: 170, height: view.bottom - view.top, fill: 'transparent' }, g); // easy to tap
+      const n = { s, c, midi: stepMidi(s), g };
+      g.addEventListener('pointerdown', () => { tone(n.midi); showKey(n.midi); });
+      return n;
+    });
+    if (old) {
+      old.forEach((o, i) => { if (o.g.classList.contains('done')) line[i].g.classList.add('done'); });
+    } else at = 0;
+    showCurrent();
+  }
+  function showCurrent() {
+    misses = 0;
+    line.forEach((n, i) => {
+      n.g.classList.toggle('now', i === at);
+      n.g.classList.toggle('later', i > at);
+      n.g.classList.remove('hint', 'miss');
+    });
+    keyEls.forEach((k) => k.g.classList.remove('target'));
+  }
+  function showHelp() {
+    const n = line[at];
+    if (!n) return;
+    n.g.classList.add('hint');
+    const k = keyEls.find((x) => x.midi === n.midi);
+    if (k) k.g.classList.add('target');
+  }
+
+  // Judge a note that was played (on the piano or on screen). It has to be the exact key:
+  // middle C only counts as middle C.
+  function judge(midi) {
+    const n = line[at];
+    if (!n) return;
+    heardEl.classList.remove('err');
+    const ok = midi === n.midi;
+    lightKey(midi, ok);
+    if (ok) {
+      heardEl.innerHTML = `<b class="yes">${n.label || (n.s === 0 ? 'Middle C' : LETTERS[mod7(n.s)])}</b>, that's right`;
+      n.g.classList.remove('miss', 'now');
+      n.g.classList.add('done');
+      // Move on right away, so quick notes (eighths, repeated notes) are never ignored.
+      at++;
+      if (at >= line.length) { if (song) lineDone(); else setTimeout(newLine, 450); } else showCurrent();
+    } else {
+      misses++;
+      const pc = ((midi % 12) + 12) % 12;
+      if (pc === n.midi % 12) {
+        const oct = Math.round((n.midi - midi) / 12);
+        heardEl.innerHTML = `Right letter, wrong <b class="no">${NAMES[pc]}</b>. Go ${Math.abs(oct) === 1 ? 'one octave' : Math.abs(oct) + ' octaves'} ${oct > 0 ? 'higher' : 'lower'}`;
+      } else {
+        heardEl.innerHTML = `That was <b class="no">${NAMES[pc]}</b>. Try again`;
+      }
+      n.g.classList.add('miss');
+      n.g.classList.remove('shake'); void n.g.getBBox(); n.g.classList.add('shake');
+      setTimeout(() => n.g.classList.remove('miss', 'shake'), 500);
+      if (misses >= 2) showHelp();
+    }
+  }
+
+  // ---------- Songs ----------
+  // Each song is written out line by line, like the printed page. A note is "pitch beats lyric":
+  // beats are in eighth notes (1 = eighth, 2 = quarter, 3 = dotted quarter, 6 = dotted half),
+  // "~" ties it to the next note, "^" adds a fermata, "r" is a rest, "|" is a bar line.
+  // Songs are kept in A to Z order in the Song list (A to Z).
+  const SONGS = [
+    {
+      id: 'o-holy-night', title: 'O Holy Night', by: 'Adolphe Adam', time: [6, 8], eighth: 0.3, // quarter = 100
+      sections: [['Section A', 0, 1], ['Section B', 2, 3], ['Section C', 4, 9], ['Section D', 10, 11]],
+      lines: [
+        'E4 3 O | E4 2 ho- | E4 1 ly | G4 3~ night! | G4 2 | G4 1 The | A4 2 stars | A4 1 are | F4 2 bright- | A4 1 ly | C5 6 shi-',
+        'G4 2 ning! | G4 1 It | E4 2 is | D4 1 the | C4 3 night, | r 1 | E4 1 of | F4 1 our | G4 3 dear | F4 2 sav- | D4 1 ior\'s | C4 6 birth. | r 6',
+        'E4 3 Long | E4 2 lay | E4 1 the | G4 3~ world | G4 2 | G4 1 in | A4 2 sin | A4 1 and | F4 2 er- | A4 1 ror | C5 6 pin-',
+        'G4 2 ing, | G4 1 \'till | F#4 2 he | E4 1 ap- | B4 3 pears | r 1 | G4 1 and | A4 1 the | B4 3 soul | C5 2 felt | B4 1 its | E4 6 worth.',
+        'r 3 | r 2 | G4 1 A | G4 3 thrill | A4 3 of | D4 3~ hope | D4 2 | G4 1 the',
+        'A4 2 wea- | G4 1 ry | C5 2 world | E4 1 re- | A4 3 joi- | G4 2 ces! | G4 1 For | G4 3 yon- | A4 3 der | D4 3~ breaks | D4 2 | G4 1 a',
+        'A4 2 new | G4 1 and | C5 2 glo- | E4 1 rious | G4 6 morn. | C5 6~ Fall | C5 3 | B4 2 on | A4 1 your',
+        'B4 6 knees; | r 3 | r 2 | B4 1 O | D5 6~ hear | D5 2 | F4 1 the | F4 2 an- | F4 1 gel',
+        'C5 6 voi- | C5 3~ ces! | C5 2 | C5 1 O | E5 6 night | D5 3~ | D5 2 | G4 1 di-',
+        'C5 6 vine, | C5 3 O | B4 2 | A4 1 | G4 6~ night | G4 2 | G4 1 when | A4 2 Christ | G4 1 was | G4 6 born,',
+        'r 3 | C5 3 O | D5 6~ night, | D5 3 | G4 3 di-',
+        'G5 6 vine! | F5 3^ O | E5 2 | D5 1 | C5 6~ night, | C5 2 | B4 1 O | C5 2 night | D5 1 di- | C5 6 vine!',
+      ],
+    },
+    {
+      // F major (B flat in the key signature, so "B4" here is B flat), 4/4, quarter = 80.
+      // One bar per line (two where a bar is mostly rest), so the notes stay big.
+      id: 'danny-boy', title: 'Danny Boy', by: 'Frederic Weatherly', time: [4, 4], key: -1, pickup: 3, eighth: 0.375,
+      sections: [['Verse 1', 0, 7], ['Chorus 1', 8, 15], ['Verse 2', 16, 24], ['Chorus 2', 25, 32]],
+      lines: [
+        'E4 1 Oh | F4 1 Dan- | G4 1 ny | A4 3 Boy, | G4 1 the | A4 1 pipes, | D5 1 the | C5 1 pipes | A4 1 are',
+        'G4 1 call- | F4 1 | D4 2~ ing | D4 1 | F4 1 from | A4 1 glen | G4 1 to',
+        'C5 3 glen, | D5 1 and | C5 1 down | A4 1 the | F4 1 moun- | A4 1 tain',
+        'G4 4~ side, | G4 1 | E4 1 the | F4 1 sum- | G4 1 mer\'s',
+        'A4 3 gone, | G4 1 and | A4 1 all | D5 1 the | C5 1 ro- | A4 1 ses',
+        'G4 1 fall- | F4 1 | D4 2~ ing, | D4 1 | E4 1 It\'s | F4 1 you, | G4 1 it\'s',
+        'A4 3 you | B4 1 must | A4 1 go, | G4 1 and | F4 1 I | G4 1 must',
+        'F4 4~ hide. | F4 1 | C5 1 But | D5 1 come | E5 1 ye',
+        'F5 3 back | E5 1 when | E5 1 sum- | D5 1 mer\'s | C5 1 in | D5 1 the',
+        'C5 1 mea- | A4 1 | F4 2~ dow, | F4 1 | C5 1 or | D5 1 when | E5 1 the',
+        'F5 3 val- | E5 1 ley\'s | E5 1 hushed | D5 1 a | C5 1 white | A4 1 with',
+        'G4 4~ snow, | G4 1 | C5 1 it\'s | C5 1 I\'ll | C5 1 be',
+        'A5 3 here | G5 1 in | G5 1 sun- | F5 1 shine | D5 1 or | F5 1 in',
+        'C5 1 sha- | A4 1 | F4 2~ dow, | F4 1 | E4 1 Oh | F4 1 Dan- | G4 1 ny',
+        'A4 1 Boy, | D5 1 oh, | C5 1 Dan- | A4 1 ny | G4 1 Boy | F4 1 I | D4 1 love | E4 1 you',
+        'F4 4~ so! | F4 1 | r 1 | r 2',
+        'r 8 | r 4 | r 1 | E4 1 But | F4 1 when | G4 1 ye',
+        'A4 3 come, | G4 1 and | A4 1 all | D5 1 the | C5 1 flow\'rs | A4 1 are',
+        'G4 1 dy- | F4 1 | D4 2~ ing, | D4 1 | E4 1 if | F4 1 I | G4 1 am',
+        'A4 3 dead, | B4 1 as | C5 1 dead | A4 1 I | F4 1 well | A4 1 may',
+        'G4 4~ be, | G4 1 | E4 1 Ye\'ll | A4 1 come | F4 1 and',
+        'A4 3 find | G4 1 the | A4 1 place | D5 1 where | C5 1 I | A4 1 am',
+        'G4 1 ly- | F4 1 | D4 2~ ing, | D4 1 | E4 1 and | F4 1 kneel | G4 1 and',
+        'A4 3 say | B4 1 an | A4 1 A- | G4 1 ve | F4 1 there | G4 1 for',
+        'F4 4~ me; | F4 1 | C5 1 And | D5 1 I | E5 1 shall',
+        'F5 3 hear, | E5 1 though | E5 1 soft | D5 1 you | C5 1 tread | D5 1 a-',
+        'C5 1 bove | A4 1 | F4 2~ me, | F4 1 | C5 1 and | D5 1 all | E5 1 my',
+        'F5 3 grave | E5 1 will | E5 1 warm- | D5 1 er, | C5 1 sweet- | A4 1 er',
+        'G4 4~ be, | G4 1 | C5 1 for | C5 1 you | C5 1 will',
+        'A5 3 bend | G5 1 and | G5 1 tell | F5 1 me | D5 1 that | F5 1 you',
+        'C5 1 love | A4 1 | F4 2~ me, | F4 1 | E4 1 and | F4 1 I | G4 1 shall',
+        'A4 1 sleep | D5 1 in | C5 1 peace | A4 1 un- | G4 1 til | F4 1 you | D4 1 come | E4 1 to',
+        'F4 8 me!',
+      ],
+    },
+  ];
+  // Turn a line's text into measures of events.
+  // Key signatures: the order sharps and flats are added, and where each sits on the treble staff.
+  const SHARP_ORDER = [['F', 10], ['C', 7], ['G', 11], ['D', 8], ['A', 5], ['E', 9], ['B', 6]];
+  const FLAT_ORDER = [['B', 6], ['E', 9], ['A', 5], ['D', 8], ['G', 4], ['C', 7], ['F', 3]];
+  const keyAlter = (key, letter) => {
+    if (key > 0) return SHARP_ORDER.slice(0, key).some(([l]) => l === letter) ? 1 : 0;
+    if (key < 0) return FLAT_ORDER.slice(0, -key).some(([l]) => l === letter) ? -1 : 0;
+    return 0;
+  };
+  function parseLine(text, time, key = 0, pickup = 0) {
+    const per = time[0] * 8 / time[1]; // eighths per measure
+    const events = [];
+    let filled = pickup ? per - pickup : 0; // a pickup bar starts partway in
+    text.split('|').map((t) => t.trim()).filter(Boolean).forEach((tok) => {
+      const [p, d, ...rest] = tok.split(' ');
+      const beats = parseInt(d, 10);
+      const ev = { rest: p === 'r', beats, tie: d.includes('~'), fermata: d.includes('^'), lyric: rest.join(' ') };
+      if (!ev.rest) {
+        // A note follows the key signature (B4 in F major is B flat) unless it says #, b or n.
+        const m = /^([A-G])([#bn]?)(\d)$/.exec(p);
+        ev.s = 7 * (+m[3] - 4) + LETTERS.indexOf(m[1]);
+        const inKey = keyAlter(key, m[1]);
+        const alter = m[2] === '#' ? 1 : m[2] === 'b' ? -1 : m[2] === 'n' ? 0 : inKey;
+        ev.acc = m[2] && alter !== inKey ? m[2] : ''; // only print an accidental the key doesn't already give
+        ev.sharp = !!ev.acc; // (kept for spacing: any printed accidental)
+        ev.midi = stepMidi(ev.s) + alter;
+      }
+      ev.bar = Math.floor(filled / per);
+      filled += beats;
+      ev.endsBar = filled % per === 0;
+      events.push(ev);
+    });
+    events.forEach((ev, i) => { ev.tiedFrom = i > 0 && events[i - 1].tie && !ev.rest; });
+    return events;
+  }
+  SONGS.forEach((song) => { song.parsed = song.lines.map((l, i) => parseLine(l, song.time, song.key || 0, i === 0 ? song.pickup || 0 : 0)); });
+
+  // The parts of a song you can practice: each line, each lettered section, or the whole thing.
+  function partsOf(song) {
+    const first = (i) => song.parsed[i].filter((e) => e.lyric).slice(0, 5).map((e) => e.lyric).join(' ').replace(/- /g, '');
+    const parts = song.parsed.map((_, i) => ({ label: `Line ${i + 1}: ${first(i)}…`, from: i, to: i }));
+    song.sections.forEach(([name, a, b]) => parts.push({ label: `${name} (lines ${a + 1}–${b + 1})`, from: a, to: b }));
+    parts.push({ label: `Whole song (${song.lines.length} lines)`, from: 0, to: song.lines.length - 1 });
+    return parts;
+  }
+
+  let song = null, parts = [], partIdx = 0, songLine = 0;
+  const G = {
+    black: 'M97 -125C186 -125 295 -43 295 42C295 93 255 125 198 125C88 125 0 44 0 -42C0 -94 43 -125 97 -125Z', half: 'M97 -125C262 -125 295 9 295 42C295 93 254 125 196 125C47 125 0 10 0 -42C0 -95 42 -125 97 -125ZM75 -87C54 -87 42 -76 35 -64C32 -58 29 -51 29 -44C29 5 174 84 221 84C240 84 251 75 258 63C261 57 264 51 264 44C264 1 123 -87 75 -87Z', up: 'M238 -790C238 -790 264 -695 264 -617C264 -492 212 -374 149 -274C98 -195 56 -109 40 -13C37 3 29 9 19 9C8 9 0 6 0 -6V-245C66 -257 161 -393 197 -478C212 -512 221 -569 221 -628C221 -673 214 -720 197 -765C195 -771 194 -776 194 -780C194 -796 204 -805 210 -809C216 -813 233 -807 238 -790Z', down: 'M240 760C254 718 261 668 261 623C261 564 236 480 221 446C184 362 134 281 0 236V1C0 -9 8 -14 16 -14C25 -14 38 -8 40 8C57 103 131 190 182 269C245 368 306 487 306 612C306 690 286 761 278 793C275 804 269 808 262 808C247 808 230 789 240 760Z',
+    rq: 'M78 -38C94 -58 108 -77 121 -98C123 -102 127 -110 127 -112C127 -113 127 -115 126 -116C124 -120 120 -121 115 -121C111 -121 103 -119 99 -118C98 -118 96 -118 95 -118L87 -115C35 -115 1 -162 1 -211C1 -261 44 -310 117 -366C125 -372 135 -375 143 -375C150 -375 157 -373 158 -369C159 -366 160 -364 160 -362C160 -353 152 -345 144 -338C131 -338 120 -311 118 -302C115 -294 114 -285 114 -276C114 -235 135 -203 177 -203C206 -203 239 -214 256 -220L257 -221C261 -222 263 -222 265 -222C268 -222 270 -221 270 -218C270 -206 244 -173 233 -161C195 -115 164 -78 164 -22C164 -21 164 -20 164 -19L165 -12C165 -11 165 -10 165 -9C169 49 205 97 231 138C234 143 235 148 235 153C235 163 231 172 231 172C231 172 83 348 66 365C61 370 54 373 48 373C38 373 28 366 28 352C28 347 29 342 32 336C36 325 93 274 93 202C93 165 78 122 33 75C23 65 19 54 19 46C19 32 29 22 29 22Z', r8: 'M134 107C134 144 104 174 67 174C30 174 0 144 0 107C0 86 12 68 27 56C43 45 62 39 81 39C95 39 109 42 120 46C134 50 143 54 156 61C158 62 160 62 161 62C165 62 166 58 166 53C166 50 166 46 165 42C162 27 90 -172 72 -238C72 -250 95 -251 101 -251C112 -251 126 -249 136 -241C139 -239 237 112 237 112C241 130 246 146 247 151C247 161 237 166 235 167C233 167 230 167 224 163C217 157 167 97 134 97Z', rw: 'M282 -109V-17C282 -2 270 9 256 9H26C11 9 0 -2 0 -17V-109C0 -123 11 -135 26 -135H256C270 -135 282 -123 282 -109Z', dot: 'M100 0C100 28 78 50 50 50C22 50 0 28 0 0C0 -28 22 -50 50 -50C78 -50 100 -28 100 0Z',
+    flat: 'M12 -170C15 -174 18 -175 21 -175C24 -175 27 -173 27 -173C57 -156 81 -129 106 -112C195 -50 226 11 226 57C226 114 182 150 136 153C119 153 95 145 81 136C75 131 64 122 59 122C57 122 56 122 54 123C47 126 43 133 43 140C44 162 50 402 50 422C50 433 41 439 31 439C17 439 1 429 0 411C0 411 4 -160 12 -170ZM47 -81C47 -81 44 -21 44 19C44 35 45 47 46 51C53 71 93 100 116 100C145 100 157 67 157 42C157 -12 111 -66 68 -93C64 -95 61 -96 58 -96C49 -96 47 -86 47 -81Z', natural: 'M141 181C139 181 138 180 137 180C137 180 73 157 47 157C41 157 37 158 37 162V329C37 336 31 341 25 341H12C5 341 0 336 0 329V-186C0 -192 3 -195 9 -195L11 -194C12 -194 14 -194 15 -193C29 -187 85 -163 114 -163C124 -163 131 -166 131 -174V-323C131 -330 136 -335 143 -335H156C162 -335 168 -330 168 -323V179C168 184 164 187 160 187C159 187 157 187 156 186ZM37 39C37 53 98 79 122 79C128 79 131 78 131 74V-29C131 -47 74 -70 49 -70C42 -70 37 -68 37 -64Z', rh: 'M282 24V116C282 131 270 142 256 142H26C11 142 0 131 0 116V24C0 10 11 -2 26 -2H256C270 -2 282 10 282 24Z',
+    t2: 'M421 -91C421 -79 416 -77 409 -77C401 -77 398 -81 396 -88L395 -89C385 -114 377 -133 356 -133C351 -133 346 -132 339 -130C326 -125 319 -124 309 -119C289 -111 242 -95 201 -95C188 -95 175 -97 164 -101C186 -65 271 -35 293 -29C363 -10 426 19 426 102C426 208 322 254 229 254C159 254 97 248 48 191C31 170 20 145 20 118C20 104 23 90 29 75C44 44 75 20 111 20C172 20 181 83 181 108C181 168 112 171 112 191C114 205 132 229 191 229C280 229 281 162 281 133C281 42 206 -27 134 -71C79 -106 40 -155 23 -220L22 -223C22 -236 33 -257 48 -257C70 -257 82 -196 141 -196C181 -196 196 -250 285 -250C328 -250 405 -246 421 -91Z', t3: 'M213 248C212 248 211 248 209 248L202 249C201 249 199 249 198 249C112 249 26 192 26 139C26 106 45 62 107 58H112C156 58 178 90 178 123V131C175 168 150 170 145 172C140 174 125 172 125 186V190C127 207 158 215 167 215C252 215 260 162 260 138V131C260 57 201 28 138 25C128 24 114 19 114 8C114 -4 131 -4 139 -4C254 -4 263 -82 263 -95C263 -201 209 -213 187 -213C183 -213 179 -212 178 -212C170 -211 151 -211 150 -196V-191C150 -169 172 -154 173 -125C173 -83 144 -53 101 -53C97 -53 94 -53 90 -54C73 -57 54 -67 42 -80C25 -95 20 -119 20 -141C22 -219 93 -249 191 -251H200C299 -251 401 -200 401 -112V-105C399 -76 392 -57 373 -35C367 -27 359 -20 349 -14L328 -2L295 7C290 8 287 8 285 12C284 14 284 15 284 17C284 21 285 25 288 26C299 29 310 30 319 35C359 54 380 80 380 126C380 218 255 245 213 248Z', t4: 'M362 -74V140C362 148 361 157 350 157C341 157 336 155 330 148L235 33C231 28 226 22 226 10V-74H91C171 -6 331 221 334 233L335 236C335 245 328 251 320 251C311 251 270 249 252 249C234 249 189 251 181 251C172 251 158 248 158 232C158 108 60 -31 30 -73L24 -81C24 -81 24 -82 24 -82L23 -83C21 -88 20 -92 20 -95C20 -105 28 -112 40 -112H226V-175C226 -202 204 -210 186 -210C170 -210 163 -219 163 -229C163 -239 167 -250 182 -250H395C405 -250 415 -243 415 -229C415 -215 403 -209 393 -209C383 -209 362 -203 362 -171V-112H435C445 -112 450 -105 450 -93C450 -81 446 -74 435 -74Z',
+    sharp: 'M237 118C244 121 249 129 249 135V206C249 211 246 214 242 214C240 214 239 214 237 213C237 213 217 205 212 204C205 204 198 209 198 217V339C198 345 192 350 184 350C174 350 168 345 168 339V209C167 199 164 186 155 180C143 173 109 159 92 155C83 155 80 167 80 175V295C80 301 73 306 66 306C56 306 50 301 50 295V160C50 146 44 136 38 133C32 130 12 122 12 122C5 120 0 112 0 106V35C0 29 3 26 9 26L11 27C12 27 27 33 35 37L36 38C44 38 50 28 50 20V-79C50 -90 45 -99 39 -102C33 -104 12 -113 12 -113C5 -115 0 -123 0 -129V-200C0 -206 3 -209 9 -209L11 -208C12 -208 26 -202 35 -199C36 -198 37 -198 38 -198C45 -198 50 -209 50 -214V-337C50 -343 56 -348 63 -348C73 -348 80 -343 80 -337V-198C80 -185 85 -178 90 -176L151 -151C151 -151 152 -151 152 -151L154 -150C163 -150 168 -162 168 -168V-293C168 -299 174 -304 181 -304C192 -304 198 -299 198 -293V-151C198 -143 202 -131 209 -128C216 -125 237 -117 237 -117C244 -114 249 -106 249 -100V-29C249 -24 246 -21 242 -21C240 -21 239 -21 237 -22L211 -32C205 -32 198 -26 198 -14V79C198 86 203 105 211 108ZM168 -45C162 -65 115 -85 92 -85C86 -85 81 -83 80 -80C78 -76 77 -54 77 -30C77 1 78 36 80 44C82 61 128 82 153 82C160 82 166 80 168 76C170 71 172 46 172 19C172 -8 170 -36 168 -45Z', t6: 'M305 83C347 83 385 116 385 159C385 163 385 166 384 170C374 234 296 251 242 251C166 250 95 213 59 145C37 103 20 50 20 3V-1C21 -47 29 -99 51 -139C92 -213 141 -249 225 -249C270 -249 320 -242 356 -213C391 -185 414 -140 414 -95C414 -17 340 50 263 50C231 50 198 38 172 15C170 13 168 13 166 13C160 13 157 21 157 37C160 222 219 227 240 227C260 227 273 222 273 212C273 198 254 186 248 174C243 165 241 155 241 145C241 130 246 115 256 104C263 91 292 83 305 83ZM222 2C254 2 281 -48 281 -110C281 -172 254 -222 222 -222C190 -222 164 -172 164 -110C164 -48 190 2 222 2Z', t8: 'M334 36C370 59 394 92 394 142C394 244 247 259 220 259C104 259 25 206 25 122C25 53 64 16 112 -11C60 -36 20 -69 20 -132C20 -219 110 -259 209 -259C309 -259 416 -216 416 -81C416 -21 381 12 334 36ZM282 59C202 87 117 104 117 167C117 209 174 230 218 230C250 230 335 214 335 144C335 104 315 78 282 59ZM205 -226C138 -226 77 -192 77 -127C77 -87 112 -50 156 -33C229 -65 303 -86 303 -152C303 -192 272 -226 205 -226Z', ferm: 'M302 221C515 221 558 63 568 25C569 22 569 19 570 18C577 4 581 -3 591 -3C600 -3 605 1 605 11C605 14 605 17 604 21C542 327 333 329 304 329C272 329 65 327 4 21C3 17 3 13 3 10C3 0 8 -3 16 -3C25 -3 30 4 36 18C37 19 38 23 39 27C51 68 96 221 302 221ZM358 52C358 81 333 106 303 106C274 106 249 81 249 52C249 22 274 -3 303 -3C333 -3 358 22 358 52Z',
+  };
+  const glyph = (g, d, x, y, cls) => el('path', { d, class: cls || 'ink', transform: `translate(${x} ${y}) scale(${FS} ${-FS})` }, g);
+  const HEAD = 295 * FS, STEM = .12 * SP, STEM_LEN = 3.5 * SP;
+  const timeDigit = (n) => ({ 2: G.t2, 3: G.t3, 4: G.t4, 6: G.t6, 8: G.t8 })[n];
+  const accGlyph = (a) => (a === '#' ? G.sharp : a === 'b' ? G.flat : G.natural);
+  const keyWidth = (key) => Math.abs(key) * SP * .95 + (key ? SP * .4 : 0);
+
+  // Draw the current line of the song on the big staff, in real note values.
+  function drawSong() {
+    staff.textContent = '';
+    const events = song.parsed[songLine];
+    const top = 0, bottom = 4 * SP, mid = 2 * SP;
+    // vertical room for every line of the song, so the size never jumps between lines
+    let lowS = 99, highS = -99;
+    song.parsed.flat().forEach((e) => { if (!e.rest) { lowS = Math.min(lowS, e.s); highS = Math.max(highS, e.s); } });
+    const vTop = Math.min(-1.9 * SP, yOf('treble', highS) - SP * .8) - 20;
+    const lyricY = Math.max(bottom + 2.4 * SP, yOf('treble', lowS) + 1.6 * SP);
+    const hintY = lyricY + 1.25 * SP;
+    const vBottom = hintY + .6 * SP;
+    view = { top: vTop, bottom: vBottom };
+
+    // horizontal layout: room for each note grows with its length, and with its lyric
+    const start = 64 + 671 * FS + 28 + keyWidth(song.key || 0) + 420 * FS + 40;
+    const xs = [];
+    let x = start;
+    events.forEach((e) => {
+      const lyricW = e.lyric ? e.lyric.length * 19 + 26 : 0;
+      const w = Math.max(HEAD + SP * .6 + Math.sqrt(e.beats) * SP * .55 + (e.sharp ? SP : 0), lyricW);
+      xs.push({ x: x + (e.sharp ? SP : 0), w });
+      x += w + (e.endsBar ? SP * .7 : 0);
+    });
+    const box = staff.parentNode.getBoundingClientRect();
+    const aspect = box.width > 0 && box.height > 0 ? box.width / box.height : 2.5;
+    VW = Math.max(x + 40, (vBottom - vTop) * aspect);
+    const stretch = (VW - 50 - start) / (x - start);
+    xs.forEach((p) => { p.x = start + (p.x - start) * stretch; p.w *= stretch; });
+    staff.setAttribute('viewBox', `0 ${vTop} ${VW} ${vBottom - vTop}`);
+    el('rect', { class: 'paper', x: 0, y: vTop, width: VW, height: vBottom - vTop, rx: 14 }, staff);
+    for (let i = 0; i < 5; i++) el('line', { class: 'line', x1: 30, x2: VW - 30, y1: top + i * SP, y2: top + i * SP }, staff);
+    el('line', { class: 'line', x1: 30, x2: 30, y1: top, y2: bottom }, staff);
+    glyph(staff, G_CLEF, 64, yOf('treble', 4), 'clef');
+    // key signature, then time signature
+    const k = song.key || 0;
+    (k > 0 ? SHARP_ORDER : FLAT_ORDER).slice(0, Math.abs(k)).forEach(([, s], i) => {
+      glyph(staff, k > 0 ? G.sharp : G.flat, 64 + 671 * FS + 24 + i * SP * .95, yOf('treble', s), 'clef');
+    });
+    const tx = 64 + 671 * FS + 28 + keyWidth(k);
+    glyph(staff, timeDigit(song.time[0]), tx, SP, 'clef');
+    glyph(staff, timeDigit(song.time[1]), tx, 3 * SP, 'clef');
+    notesG = el('g', {}, staff);
+
+    line = [];
+    events.forEach((e, i) => {
+      const { x: nx, w } = xs[i];
+      // a tied note belongs to the note it's tied from, so it lights up (and greys out) with it
+      const g = e.tiedFrom ? events[i - 1].g : el('g', { class: 'note song' }, notesG);
+      const playable = !e.rest && !e.tiedFrom;
+      if (playable) el('rect', { class: 'spot', x: nx - SP * .45, y: vTop + 10, width: HEAD + SP * .9, height: vBottom - vTop - 20, rx: 16 }, g);
+      if (e.rest) {
+        const per = song.time[0] * 8 / song.time[1];
+        if (e.beats === per) glyph(g, G.rw, nx, yOf('treble', 8), 'head'); // a whole bar's rest
+        else if (e.beats >= 4) glyph(g, G.rh, nx, mid, 'head');
+        else glyph(g, e.beats === 1 ? G.r8 : G.rq, nx, mid, 'head');
+        if (e.beats === 3 || e.beats === 6 && e.beats !== per) glyph(g, G.dot, nx + 300 * FS + SP * .25, mid - SP / 2, 'head');
+      } else {
+        const y = yOf('treble', e.s);
+        ledgers(g, 'treble', e.s, nx + HEAD / 2);
+        g.querySelectorAll('.ledger').forEach((l) => { l.setAttribute('x1', nx - SP * .4); l.setAttribute('x2', nx + HEAD + SP * .4); });
+        if (e.acc) glyph(g, accGlyph(e.acc), nx - SP * .35 - 249 * FS, y, 'head');
+        const whole = e.beats >= 8, hollow = e.beats >= 4;
+        glyph(g, whole ? WHOLE : hollow ? G.half : G.black, whole ? nx - 63 * FS : nx, y, 'head');
+        const down = e.s >= 6; // on or above the middle line: stem goes down
+        if (whole) { /* no stem */ } else if (down) {
+          el('rect', { class: 'stem', x: nx, y: y + .168 * SP, width: STEM, height: STEM_LEN - .168 * SP }, g);
+          if (e.beats === 1) glyph(g, G.down, nx, y + STEM_LEN, 'head');
+        } else {
+          el('rect', { class: 'stem', x: nx + HEAD - STEM, y: y - STEM_LEN, width: STEM, height: STEM_LEN - .168 * SP }, g);
+          if (e.beats === 1) glyph(g, G.up, nx + HEAD - STEM, y - STEM_LEN, 'head');
+        }
+        if ([3, 6, 12].includes(e.beats)) glyph(g, G.dot, nx + HEAD + SP * .3, y - (mod7(e.s - 2) % 2 === 0 ? SP / 2 : 0), 'head');
+        if (e.fermata) glyph(g, G.ferm, nx + HEAD / 2 - 302 * FS, Math.min(top, y) - SP * .9, 'head');
+        e.down = down;
+      }
+      if (e.lyric) { const t = el('text', { class: 'lyric', x: nx + HEAD / 2, y: lyricY }, g); t.textContent = e.lyric; }
+      if (playable) {
+        const t = el('text', { class: 'name', x: nx + HEAD / 2, y: hintY }, g);
+        t.textContent = e.midi === 60 ? 'Middle C' : NAMES[e.midi % 12];
+        if (t.textContent.length > 2) t.classList.add('small');
+        el('rect', { x: nx - SP * .45, y: vTop, width: HEAD + SP * .9, height: vBottom - vTop, fill: 'transparent' }, g);
+        const n = { s: e.s, midi: e.midi, g, label: t.textContent };
+        g.addEventListener('pointerdown', () => { tone(n.midi); showKey(n.midi); });
+        line.push(n);
+      }
+      e.x = nx; e.g = g;
+      if (e.endsBar) {
+        const bx = nx + w + SP * .35 * stretch;
+        const last = i === events.length - 1;
+        el('line', { class: 'bar', x1: last ? VW - 30 : bx, x2: last ? VW - 30 : bx, y1: top, y2: bottom }, staff);
+      }
+    });
+    // ties: a curve from a note to the next one, on the side away from the stems
+    events.forEach((e, i) => {
+      if (!e.tie || !events[i + 1]) return;
+      const f = events[i + 1], y = yOf('treble', e.s), side = e.down ? -1 : 1;
+      const x1 = e.x + HEAD * .75, x2 = f.x + HEAD * .25, y0 = y + side * SP * .55, bend = side * SP * .75;
+      const mx = (x1 + x2) / 2;
+      el('path', { class: 'tie', d: `M ${x1} ${y0} Q ${mx} ${y0 + bend} ${x2} ${y0} Q ${mx} ${y0 + bend - side * SP * .16} ${x1} ${y0} Z` }, e.g);
+    });
+    at = 0;
+    showCurrent();
+    lineLabel();
+  }
+  function lineLabel() {
+    const p = parts[partIdx];
+    const n = p.to - p.from + 1;
+    document.getElementById('where').textContent = n > 1 ? `Line ${songLine + 1} (${songLine - p.from + 1} of ${n})` : `Line ${songLine + 1}`;
+  }
+  function lineDone() {
+    const p = parts[partIdx];
+    if (songLine < p.to) {
+      // straight on to the next line, so a quick first note isn't missed
+      const msg = heardEl.innerHTML;
+      songLine++; drawSong();
+      heardEl.innerHTML = msg + '. Next line';
+    } else if (autoNext) {
+      startPart(neighborPart(1));
+      heardEl.innerHTML = `<b class="yes">Well done!</b> On to line ${songLine + 1}`;
+    } else {
+      heardEl.innerHTML = '<b class="yes">Well done!</b> Tap Again, or Next for the next part';
+      line.forEach((n) => n.g.classList.add('done'));
+    }
+  }
+  // The part before or after this one, of the same kind: line to line, section to section.
+  function neighborPart(dir) {
+    const nLines = song.parsed.length, nSec = song.sections.length;
+    if (partIdx < nLines) return (partIdx + dir + nLines) % nLines;
+    if (partIdx < nLines + nSec) return nLines + (partIdx - nLines + dir + nSec) % nSec;
+    return partIdx; // whole song: start it over
+  }
+  let autoNext = true;
+  try { autoNext = localStorage.getItem('read-auto') !== '0'; } catch { /* private mode */ }
+  function startPart(i) {
+    stopPlaying();
+    partIdx = (i + parts.length) % parts.length;
+    partSel.value = String(partIdx);
+    songLine = parts[partIdx].from;
+    try { localStorage.setItem('read-part-' + song.id, String(partIdx)); } catch { /* private mode */ }
+    heardEl.textContent = '';
+    drawSong();
+  }
+  // "Play it": play the whole chosen part (one line, a section or the whole song) at the
+  // song's tempo, lighting each note as it sounds. The staff turns to each next line by itself.
+  // The whole part is rendered into one audio clip up front and played by a single <audio>
+  // element, so the timing is exact (iPad timers and per-note players made it choppy). The
+  // screen follows the clip's own clock.
+  const hearBtn = document.getElementById('hear');
+  const clipPlayer = new Audio();
+  clipPlayer.setAttribute('playsinline', '');
+  let playing = null; // { timeline, lineStarts, end, raf }
+  function stopPlaying() {
+    if (playing) { cancelAnimationFrame(playing.raf); playing = null; }
+    clipPlayer.pause();
+    busyUntil = 0;
+    notesG && notesG.querySelectorAll('.playing').forEach((g) => g.classList.remove('playing'));
+    hearBtn.textContent = 'Play it';
+  }
+  // Build the timeline for lines from..to: every sounding note with its start and length in seconds.
+  function partTimeline(from, to) {
+    const notes = [], lineStarts = [];
+    let t = 0;
+    for (let L = from; L <= to; L++) {
+      lineStarts.push(t);
+      const events = song.parsed[L];
+      events.forEach((e, i) => {
+        if (!e.rest && !e.tiedFrom) {
+          let len = e.beats;
+          for (let j = i; events[j].tie && events[j + 1]; j++) len += events[j + 1].beats;
+          notes.push({ line: L, i, midi: e.midi, start: t, len: len * song.eighth });
+        }
+        t += e.beats * song.eighth;
+      });
+    }
+    return { notes, lineStarts, end: t };
+  }
+  // Render the notes into a mono 16-bit WAV (same soft piano-ish tone as single notes).
+  function renderClip(notes, end) {
+    const sr = 16000, len = Math.ceil(sr * (end + 1.2));
+    const mix = new Float32Array(len);
+    notes.forEach((n) => {
+      const f = 2 * Math.PI * 440 * Math.pow(2, (n.midi - 69) / 12) / sr;
+      const ring = Math.max(.4, n.len * 1.1), rel = .06;
+      const i0 = Math.round(n.start * sr), cnt = Math.min(len - i0, Math.round((ring + rel) * sr));
+      for (let k = 0; k < cnt; k++) {
+        const t = k / sr;
+        let env = Math.min(1, t * 120) * Math.exp(-t * 3.2);
+        if (t > ring) env *= 1 - (t - ring) / rel; // short fade so notes don't click off
+        const x = Math.sin(f * k) + .3 * Math.sin(2 * f * k) + .1 * Math.sin(3 * f * k);
+        mix[i0 + k] += x * env * .4;
+      }
+    });
+    const buf = new ArrayBuffer(44 + len * 2), v = new DataView(buf);
+    const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + len * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true);
+    v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, len * 2, true);
+    for (let i = 0; i < len; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, mix[i])) * 32767, true);
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return 'data:audio/wav;base64,' + btoa(bin);
+  }
+  function hearIt() {
+    if (playing) { stopPlaying(); return; } // tapping again stops it
+    const p = parts[partIdx];
+    songLine = p.from; heardEl.textContent = ''; drawSong();
+    const tl = partTimeline(p.from, p.to);
+    clipPlayer.src = renderClip(tl.notes, tl.end);
+    clipPlayer.muted = !soundOn;
+    try { clipPlayer.currentTime = 0; } catch { /* not loaded yet */ }
+    playing = { ...tl, raf: 0, from: p.from, to: p.to };
+    hearBtn.textContent = 'Stop';
+    busyUntil = performance.now() + (tl.end + 1) * 1000; // don't "hear" our own speaker
+    clipPlayer.play().then(soundOk, () => { soundBlocked(); stopPlaying(); });
+    follow();
+  }
+  // Each frame: turn the staff to the line being played and light the sounding notes.
+  function follow() {
+    const pl = playing;
+    if (!pl) return;
+    const t = clipPlayer.currentTime;
+    if (clipPlayer.ended || t >= pl.end + .3) {
+      stopPlaying();
+      if (pl.to > pl.from) { songLine = pl.from; drawSong(); } // back to the start, ready to play along
+      return;
+    }
+    let L = pl.from;
+    while (L < pl.to && t >= pl.lineStarts[L - pl.from + 1] - .02) L++;
+    if (L !== songLine) { songLine = L; drawSong(); }
+    const events = song.parsed[songLine];
+    pl.notes.forEach((n) => {
+      if (n.line !== songLine) return;
+      const g = events[n.i].g;
+      if (g) g.classList.toggle('playing', t >= n.start && t < n.start + n.len - .04);
+    });
+    pl.raf = requestAnimationFrame(follow);
+  }
+  // ---------- Keyboard: the same stretch of the piano as the notes ----------
+  const keysSvg = document.getElementById('keys');
+  const PX = 20, PY = 14, H = 300;
+  let keyEls = []; // {midi, g}
+  function key(midi, ev) { tone(midi); judge(midi); }
+  function drawKeys() {
+    keysSvg.textContent = '';
+    keyEls = [];
+    const NW = hi - lo + 1, W = 1160 / NW, BW = W * .62, BH = 185;
+    const r = Math.min(17, W * .36), labelAll = W >= 40;
+    const defs = el('defs', {}, keysSvg);
+    const clip = el('clipPath', { id: 'bed' }, defs);
+    el('rect', { x: PX - 1, y: PY - 1, width: W * NW + 2, height: H + 2, rx: 3 }, clip);
+    const bed = el('g', { 'clip-path': 'url(#bed)' }, keysSvg);
+    const wg = el('linearGradient', { id: 'whiteKey', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+    el('stop', { offset: 0, 'stop-color': '#f2f2f0' }, wg); el('stop', { offset: .12, 'stop-color': '#ffffff' }, wg); el('stop', { offset: 1, 'stop-color': '#fafaf9' }, wg);
+    const bg = el('linearGradient', { id: 'blackKey', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+    el('stop', { offset: 0, 'stop-color': '#1f1f21' }, bg); el('stop', { offset: 1, 'stop-color': '#3a3a3d' }, bg);
+    const pg = el('linearGradient', { id: 'pressShade', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+    el('stop', { offset: 0, 'stop-color': '#000', 'stop-opacity': .22 }, pg); el('stop', { offset: .18, 'stop-color': '#000', 'stop-opacity': .06 }, pg); el('stop', { offset: .4, 'stop-color': '#000', 'stop-opacity': 0 }, pg);
+    function label(g, cx, cy, text, dark) {
+      el('circle', { class: 'ring', cx, cy, r, fill: dark ? '#2f2f32' : '#fbfbfa', stroke: dark ? '#4a4a4e' : '#d6d6d1', 'stroke-width': 1.5 }, g);
+      const t = el('text', { class: 'lbl', x: cx, y: cy + 1, 'font-size': r * (text.length > 1 ? .82 : 1), fill: dark ? '#8d8d92' : 'var(--ink)' }, g);
+      t.textContent = text;
+    }
+    for (let s = lo; s <= hi; s++) {
+      const i = s - lo, m = stepMidi(s);
+      const g = el('g', { class: 'key', 'data-midi': m }, bed);
+      const x = PX + i * W;
+      el('rect', { x, y: PY, width: W, height: H, rx: 3, fill: 'url(#whiteKey)' }, g);
+      el('rect', { class: 'hitfill', x, y: PY, width: W, height: H, rx: 3, fill: 'transparent' }, g);
+      el('rect', { class: 'press', x, y: PY, width: W, height: H, rx: 3, fill: 'url(#pressShade)' }, g);
+      el('rect', { x, y: PY, width: W, height: H, rx: 3, fill: 'none', stroke: '#8e8e89', 'stroke-width': 1, 'vector-effect': 'non-scaling-stroke' }, g);
+      el('rect', { class: 'aim', x: x + 3, y: PY + 3, width: W - 6, height: H - 6, rx: 5, 'stroke-width': Math.min(6, W / 7) }, g);
+      if (labelAll || mod7(s) === 0) label(g, x + W / 2, PY + H - r - 22, LETTERS[mod7(s)], false);
+      keyEls.push({ midi: m, g });
+      if (s === 0) { // middle C gets a name tag under the keyboard
+        const t = el('text', { class: 'mid-c', x: x + W / 2, y: PY + H + 26 }, keysSvg);
+        t.textContent = 'Middle C';
+        el('path', { d: `M ${x + W / 2 - 7} ${PY + H + 10} l 7 -7 l 7 7 z`, fill: 'var(--ink-strong)' }, keysSvg);
+      }
+    }
+    for (let s = lo; s < hi; s++) {
+      if ([2, 6].includes(mod7(s))) continue; // no black key after E or B
+      const m = stepMidi(s) + 1;
+      const g = el('g', { class: 'key black', 'data-midi': m }, bed);
+      const cx = PX + (s - lo + 1) * W;
+      el('rect', { x: cx - BW / 2 - 1, y: PY, width: BW + 2, height: BH + 3, rx: Math.min(5, BW / 6), fill: '#000', opacity: .1 }, g);
+      el('rect', { x: cx - BW / 2, y: PY, width: BW, height: BH, rx: Math.min(5, BW / 6), fill: 'url(#blackKey)', stroke: '#141416' }, g);
+      el('rect', { class: 'hitfill', x: cx - BW / 2, y: PY, width: BW, height: BH, rx: Math.min(5, BW / 6), fill: 'transparent' }, g);
+      el('rect', { class: 'press', x: cx - BW / 2, y: PY, width: BW, height: BH, rx: Math.min(5, BW / 6), fill: 'url(#pressShade)' }, g);
+      if (labelAll) label(g, cx, PY + BH - r - 14, NAMES[m % 12], true);
+      keyEls.push({ midi: m, g });
+    }
+    keyEls.forEach(({ midi, g }) => {
+      g.addEventListener('pointerdown', (ev) => { ev.preventDefault(); key(midi); g.classList.add('pressed'); });
+      const up = () => { g.classList.remove('pressed'); };
+      g.addEventListener('pointerup', up);
+      g.addEventListener('pointerleave', up);
+      g.addEventListener('pointercancel', up);
+    });
+  }
+  let hitTimer = null;
+  function lightKey(midi, ok) {
+    keyEls.forEach((x) => x.g.classList.remove('hit-in', 'hit-out'));
+    clearTimeout(hitTimer);
+    const k = keyEls.find((x) => x.midi === midi);
+    if (!k) return;
+    k.g.classList.add(ok ? 'hit-in' : 'hit-out');
+    hitTimer = setTimeout(() => k.g.classList.remove('hit-in', 'hit-out'), 900);
+  }
+
+  // Tapping a note on the staff lights up its key for a moment.
+  let showTimer = null;
+  function showKey(midi) {
+    clearTimeout(showTimer);
+    keyEls.forEach((x) => x.g.classList.toggle('shown', x.midi === midi));
+    showTimer = setTimeout(() => keyEls.forEach((x) => x.g.classList.remove('shown')), 1200);
+  }
+
+  // ---------- Buttons ----------
+  let pitchFloor = 60; // lowest pitch (Hz) the listener looks for; set from the range
+  const clefBtns = [...document.querySelectorAll('#clefs button')];
+  const rangeBtns = [...document.querySelectorAll('#ranges button')];
+  function setup() {
+    document.body.classList.toggle('songmode', !!song);
+    NAMES = song && song.key < 0 ? FLAT_NAMES : SHARP_NAMES;
+    document.getElementById('partPick').hidden = !song;
+    document.getElementById('hear').hidden = !song;
+    document.getElementById('songNav').hidden = !song;
+    if (song) {
+      // a song sets its own staff and keys: treble clef, middle C up two octaves
+      clef = 'treble'; lo = 0; hi = 14;
+      pitchFloor = 440 * Math.pow(2, (stepMidi(lo) - 69) / 12) / 2.1;
+      drawKeys();
+      startPart(partIdx);
+      return;
+    }
+    try { clef = localStorage.getItem('read-clef') || clef; } catch { /* private mode */ }
+    [lo, hi] = RANGES[range];
+    clefBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === clef)));
+    rangeBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === range)));
+    try { localStorage.setItem('read-clef', clef); localStorage.setItem('read-range', range); } catch { /* private mode */ }
+    pitchFloor = 440 * Math.pow(2, (stepMidi(lo) - 69) / 12) / 2.1; // an octave below the lowest key
+    last = clef === 'bass' ? -3 : clef === 'treble' ? 3 : 0;
+    drawStaff();
+    drawKeys();
+    newLine();
+  }
+  try {
+    const c = localStorage.getItem('read-clef'), r = localStorage.getItem('read-range');
+    if (['treble', 'bass', 'both'].includes(c)) clef = c;
+    if (r in RANGES) range = r;
+  } catch { /* private mode */ }
+  clefBtns.forEach((b) => b.addEventListener('click', () => { clef = b.dataset.v; try { localStorage.setItem('read-clef', clef); } catch { /* private mode */ } setup(); }));
+  // Song list: the songs A to Z (random notes moved to the Read page).
+  const songSel = document.getElementById('songSel'), partSel = document.getElementById('partSel');
+  [...SONGS].sort((a, b) => a.title.localeCompare(b.title)).forEach((s) => songSel.add(new Option(s.title, s.id)));
+  function chooseSong(id) {
+    const az = [...SONGS].sort((a, b) => a.title.localeCompare(b.title));
+    song = SONGS.find((s) => s.id === id) || az[0];
+    songSel.value = song ? song.id : '';
+    try { localStorage.setItem('read-song', song ? song.id : ''); } catch { /* private mode */ }
+    if (song) {
+      parts = partsOf(song);
+      partSel.textContent = '';
+      parts.forEach((p, i) => partSel.add(new Option(p.label, String(i))));
+      partIdx = 0;
+      try { const v = parseInt(localStorage.getItem('read-part-' + song.id), 10); if (v >= 0 && v < parts.length) partIdx = v; } catch { /* private mode */ }
+    }
+    heardEl.textContent = '';
+    setup();
+  }
+  songSel.addEventListener('change', () => chooseSong(songSel.value));
+  partSel.addEventListener('change', () => startPart(parseInt(partSel.value, 10)));
+  document.getElementById('again').addEventListener('click', () => startPart(partIdx));
+  document.getElementById('next').addEventListener('click', () => {
+    const p = parts[partIdx];
+    if (songLine < p.to) { stopPlaying(); songLine++; heardEl.textContent = ''; drawSong(); } else startPart(neighborPart(1));
+  });
+  document.getElementById('back').addEventListener('click', () => {
+    const p = parts[partIdx];
+    if (songLine > p.from) { stopPlaying(); songLine--; heardEl.textContent = ''; drawSong(); } else startPart(neighborPart(-1));
+  });
+  const autoBtn = document.getElementById('auto');
+  const showAuto = () => autoBtn.setAttribute('aria-pressed', String(autoNext));
+  showAuto();
+  autoBtn.addEventListener('click', () => {
+    autoNext = !autoNext;
+    showAuto();
+    try { localStorage.setItem('read-auto', autoNext ? '1' : '0'); } catch { /* private mode */ }
+  });
+  document.getElementById('hear').addEventListener('click', hearIt);
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (song) { const keep = at, done = line.slice(0, at); drawSong(); at = keep; line.forEach((n, i) => { if (i < keep) n.g.classList.add('done'); }); showCurrent(); }
+      else { drawStaff(); newLine(true); }
+    }, 150);
+  });
+  rangeBtns.forEach((b) => b.addEventListener('click', () => { range = b.dataset.v; setup(); }));
+
+  // ---------- Sound ----------
+  let mic = null, micStarting = false;
+  function setAudioSession(type) {
+    try { if (navigator.audioSession && navigator.audioSession.type !== type) navigator.audioSession.type = type; } catch (e) { /* not supported */ }
+  }
+  let ctx = null, soundOn = true, cancelScale = [], scalePcs = new Set(), busyUntil = 0;
+  const soundBtn = document.getElementById('sound');
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    soundBtn.textContent = soundOn ? 'Sound on' : 'Sound off';
+    soundBtn.setAttribute('aria-pressed', String(soundOn));
+  });
+  function unlock() {
+    // 'playback' keeps Silent mode from muting notes, but it forbids recording, so never
+    // set it while (or just before) the microphone is in use.
+    setAudioSession(mic || micStarting ? 'play-and-record' : 'playback');
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+    }
+    if (ctx.state !== 'running') {
+      const b = ctx.createBufferSource();
+      b.buffer = ctx.createBuffer(1, 1, 22050);
+      b.connect(ctx.destination);
+      b.start(0);
+      ctx.resume().catch(() => {});
+    }
+    return ctx;
+  }
+  ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach((g) => window.addEventListener(g, unlock, true));
+  // On iPad/iPhone, Web Audio is silenced by Silent mode, and inside apps (like the Claude app)
+  // the page can't override that. Pre-rendered notes played through an <audio> element are
+  // treated as media playback instead, so on iOS we always use those.
+  const isIOS = /iP(ad|hone|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const useHtmlAudio = isIOS;
+  const wavCache = new Map();
+  function noteWav(midi) {
+    if (wavCache.has(midi)) return wavCache.get(midi);
+    const sr = 22050, len = Math.floor(sr * 1.3), f = 440 * Math.pow(2, (midi - 69) / 12);
+    const buf = new ArrayBuffer(44 + len * 2), v = new DataView(buf);
+    const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + len * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true);
+    v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, len * 2, true);
+    for (let i = 0; i < len; i++) {
+      const t = i / sr;
+      const env = Math.min(1, t * 120) * Math.exp(-t * 3.2);
+      // triangle-ish fundamental plus soft overtones
+      const x = Math.sin(2 * Math.PI * f * t) + .3 * Math.sin(4 * Math.PI * f * t) + .1 * Math.sin(6 * Math.PI * f * t);
+      v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, x * env * .45)) * 32767, true);
+    }
+    // data: URL rather than blob:, since some hosts only allow data: media.
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    const url = 'data:audio/wav;base64,' + btoa(bin);
+    wavCache.set(midi, url);
+    return url;
+  }
+  // iPad: making a new <audio> element for every tap piles up decoders and makes Safari
+  // lag, then play stale or garbled notes. Keep two reusable players per note instead.
+  const players = new Map();
+  function player(midi) {
+    let pool = players.get(midi);
+    if (!pool) {
+      pool = [0, 1].map(() => { const a = new Audio(noteWav(midi)); a.setAttribute('playsinline', ''); a.preload = 'auto'; return a; });
+      pool.next = 0;
+      players.set(midi, pool);
+    }
+    const a = pool[pool.next];
+    pool.next = (pool.next + 1) % pool.length;
+    if (!a.paused) a.pause();
+    return a;
+  }
+  function tone(midi, when = 0, dur = 1.2, vol = .22) {
+    if (!soundOn) return;
+    busyUntil = Math.max(busyUntil, performance.now() + (when + dur * .8) * 1000);
+    if (useHtmlAudio) {
+      const a = player(midi);
+      const go = () => { try { a.currentTime = 0; } catch { /* not loaded yet */ } a.play().then(soundOk, soundBlocked); };
+      if (when > 0) setTimeout(go, when * 1000); else go();
+      return;
+    }
+    const c = unlock();
+    if (!c) return;
+    if (c.state === 'running') { webTone(midi, when, dur, vol); soundOk(); }
+    else {
+      c.resume().then(() => { webTone(midi, when, dur, vol); soundOk(); }).catch(soundBlocked);
+      setTimeout(() => { if (c.state !== 'running') soundBlocked(); }, 800);
+    }
+  }
+  // Tell the person on screen when the browser is refusing to play sound.
+  const msg = document.getElementById('soundMsg');
+  function soundOk() { msg.hidden = true; }
+  // Mark asked for no pop-up text here; just note it for debugging.
+  function soundBlocked() { console.warn('sound may be blocked'); }
+  function webTone(midi, when, dur, vol) {
+    const t = ctx.currentTime + when + .01;
+    const f = 440 * Math.pow(2, (midi - 69) / 12);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + .008);
+    g.gain.exponentialRampToValueAtTime(vol * .3, t + .3);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    g.connect(ctx.destination);
+    [[1, 'triangle', 1], [2, 'sine', .3], [3, 'sine', .1]].forEach(([m, type, a]) => {
+      const o = ctx.createOscillator();
+      o.type = type; o.frequency.value = f * m;
+      const og = ctx.createGain(); og.gain.value = a;
+      o.connect(og).connect(g);
+      o.start(t); o.stop(t + dur + .05);
+    });
+  }
+  function tick() {
+    if (!soundOn || !ctx || useHtmlAudio || ctx.state !== 'running') return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = 2400;
+    g.gain.setValueAtTime(.04, t); g.gain.exponentialRampToValueAtTime(.0001, t + .03);
+    o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + .04);
+  }
+
+  // Warm up the iPad note cache for the middle of the piano so the first tap isn't delayed.
+  if (useHtmlAudio) setTimeout(() => { for (let m = 48; m <= 72; m++) player(m); }, 300);
+
+  // ---------- Listening to a real piano ----------
+  // Autocorrelation pitch detection: reliable for one note at a time.
+  function detectPitch(buf, sr, full = true) {
+    const n = buf.length;
+    let rms = 0;
+    for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
+    rms = Math.sqrt(rms / n);
+    if (!full || rms < 0.0003) return { freq: -1, rms, clarity: 0 };
+    // From an octave below the lowest note in play (pitchFloor) up to C8. Wider ranges cost more work.
+    const minLag = Math.max(2, Math.floor(sr / 4400)), maxLag = Math.min(Math.floor(sr / pitchFloor), n >> 1), size = n - maxLag;
+    const nsdf = new Float32Array(maxLag + 1);
+    let best = 0;
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let ac = 0, m = 0;
+      for (let i = 0; i < size; i++) { const a = buf[i], b = buf[i + lag]; ac += a * b; m += a * a + b * b; }
+      nsdf[lag] = m > 0 ? 2 * ac / m : 0;
+      if (nsdf[lag] > best) best = nsdf[lag];
+    }
+    if (best < 0.5) return { freq: -1, rms, clarity: best };
+    let lag = -1;
+    for (let i = minLag + 1; i < maxLag; i++) {
+      if (nsdf[i] >= best * 0.9 && nsdf[i] >= nsdf[i - 1] && nsdf[i] >= nsdf[i + 1]) { lag = i; break; }
+    }
+    if (lag < 0) return { freq: -1, rms, clarity: best };
+    const a = nsdf[lag - 1], b = nsdf[lag], c = nsdf[lag + 1];
+    const shift = (a - c) / (2 * (a - 2 * b + c) || 1);
+    return { freq: sr / (lag + shift), rms, clarity: b };
+  }
+
+  const micBtn = document.getElementById('mic');
+  const heardEl = document.getElementById('heard');
+  const micDot = micBtn.querySelector('.dot');
+  const meterFill = document.getElementById('meterFill');
+  micBtn.addEventListener('click', async () => {
+    if (mic) { stopMic(); return; }
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showMicError({ name: 'NoApi' });
+      return;
+    }
+    heardEl.textContent = 'Asking for the microphone…';
+    // Make the listening context right here in the tap, so iPad lets it run.
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const mctx = new AC();
+    mctx.resume().catch(() => {});
+    micStarting = true;
+    setAudioSession('play-and-record');
+    let stream;
+    try {
+      // Ask for the mic first, straight from the tap, before touching audio playback.
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      } catch (e) {
+        if (e && (e.name === 'OverconstrainedError' || e.name === 'TypeError')) stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        else throw e;
+      }
+    } catch (e) {
+      micStarting = false;
+      setAudioSession('playback');
+      mctx.close().catch(() => {});
+      showMicError(e);
+      return;
+    }
+    micStarting = false;
+    try {
+      const c = mctx;
+      if (c.state !== 'running') await c.resume().catch(() => {});
+      const src = c.createMediaStreamSource(stream);
+      const an = c.createAnalyser();
+      an.fftSize = 4096;
+      // Safari only processes audio that reaches the speakers, so route the analyser
+      // to the output through a silent gain node.
+      const mute = c.createGain();
+      mute.gain.value = 0;
+      src.connect(an);
+      an.connect(mute);
+      mute.connect(c.destination);
+      mic = { stream, ctx: c, an, buf: new Float32Array(4096), sr: c.sampleRate, candF: null, stable: 0, lo: 0, hi: 0, hist: [0, 0, 0], window: 0, quietFor: 0 };
+      mic.timer = setInterval(listen, 16);
+      micBtn.setAttribute('aria-pressed', 'true');
+      micBtn.lastChild.textContent = 'Mic';
+      document.body.classList.add('listening');
+      heardEl.classList.remove('err');
+      heardEl.textContent = 'Play a note on your piano';
+    } catch (e) {
+      stream.getTracks().forEach((t) => t.stop());
+      showMicError({ name: 'AudioSetup', message: e && e.message });
+    }
+  });
+  // Say which situation we're in, so it's clear what to change.
+  function showMicError(e) {
+    const name = (e && e.name) || 'Unknown';
+    const inApp = isIOS && !/Safari\//.test(navigator.userAgent); // in-app browsers (e.g. inside the Claude app) drop "Safari/"
+    let text;
+    if (name === 'NoApi') {
+      text = inApp
+        ? 'This in-app browser can\'t use the microphone. Open this page in Safari (tap the compass/Safari icon, or copy the link into Safari).'
+        : 'This browser can\'t use the microphone here. Open the page in Safari or Chrome.';
+    } else if (name === 'NotAllowedError' || name === 'SecurityError') {
+      text = inApp
+        ? 'The app you opened this in isn\'t allowed to use the microphone. Open this page in Safari instead (tap the compass/Safari icon, or copy the link into Safari).'
+        : isIOS
+          ? 'Microphone is blocked for this site. In Safari tap “aA” (or the page icon) in the address bar → Website Settings → Microphone → Allow, then reload. Also check Settings → Apps → Safari → Microphone is set to Ask or Allow.'
+          : 'Microphone is blocked for this site. Click the icon next to the address bar, allow the microphone, then reload.';
+    } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+      text = 'No microphone was found on this device.';
+    } else if (name === 'NotReadableError' || name === 'AbortError') {
+      text = 'Another app is using the microphone. Close it (or end the call) and tap Mic again.';
+    } else {
+      text = 'Couldn\'t start the microphone (' + name + '). Reload the page and tap Mic again.';
+    }
+    heardEl.textContent = text;
+    heardEl.classList.add('err');
+    console.warn('mic error', e);
+  }
+  function stopMic() {
+    setAudioSession('playback');
+    clearInterval(mic.timer);
+    mic.stream.getTracks().forEach((t) => t.stop());
+    mic.ctx.close().catch(() => {});
+    meterFill.style.width = '0%';
+    mic = null;
+    micBtn.setAttribute('aria-pressed', 'false');
+    micBtn.lastChild.textContent = 'Mic';
+    document.body.classList.remove('listening');
+    micDot.style.transform = '';
+    heardEl.textContent = ''; heardEl.classList.remove('err');
+  }
+  function listen() {
+    // iPad can pause ("interrupt") the context when the audio mode changes; wake it up.
+    if (mic.ctx.state !== 'running') mic.ctx.resume().catch(() => {});
+    mic.an.getFloatTimeDomainData(mic.buf);
+    const { rms } = detectPitch(mic.buf, mic.sr, false);
+    micDot.style.transform = `scale(${1 + Math.min(1.2, rms * 12)})`;
+    // Level meter: log scale so quiet rooms still show movement.
+    const lvl = rms > 0 ? Math.max(0, Math.min(1, (20 * Math.log10(rms) + 60) / 50)) : 0;
+    meterFill.style.width = (lvl * 100).toFixed(0) + '%';
+    if (rms < 0.0005) {
+      mic.quietFor++;
+      if (mic.quietFor === 190 && !heardEl.querySelector('b')) { heardEl.textContent = 'The microphone isn\'t picking up any sound. Check nothing is covering it, then turn Mic off and on.'; heardEl.classList.add('err'); }
+    } else mic.quietFor = 0;
+    // Only count a note just after a fresh key strike: a sharp jump in loudness opens a
+    // short window. Ringing strings and the tail of the last note never jump, so they're ignored.
+    // Loudness of just the newest ~10 ms, so a key strike shows up as a sharp jump even
+    // while the previous note is still ringing.
+    let e = 0;
+    for (let i = mic.buf.length - 512; i < mic.buf.length; i++) e += mic.buf[i] * mic.buf[i];
+    const now = Math.sqrt(e / 512);
+    const before = mic.hist[0];
+    mic.hist.push(now); mic.hist.shift();
+    // Also look for a strike inside the newest ~25 ms in 5 ms steps: playing quickly, or the
+    // same key twice, the old note is still ringing, so the jump only shows up close in.
+    let strike = now > before * sens.ratio;
+    if (!strike) {
+      const B = 256, n = mic.buf.length;
+      let prev = -1;
+      for (let s = n - 5 * B; s < n; s += B) {
+        let be = 0;
+        for (let i = s; i < s + B; i++) be += mic.buf[i] * mic.buf[i];
+        be = Math.sqrt(be / B);
+        if (prev > 0 && be > prev * sens.ratio && be > sens.floor) { strike = true; break; }
+        prev = be;
+      }
+    }
+    if (strike && now > sens.floor && mic.window < 20) { mic.window = 24; mic.candF = null; mic.stable = 0; }
+    if (mic.window > 0) mic.window--;
+    if (performance.now() < busyUntil) return; // don't "hear" our own speaker
+    // The pitch analysis is the expensive part, so only run it just after a key strike.
+    // Look at only the newest slice that still fits the lowest note in play: a shorter slice
+    // holds less of the previous note, so quick notes come through cleanly (and it's faster).
+    const need = 2 * Math.ceil(mic.sr / pitchFloor) + 64;
+    const slice = need <= 2048 ? mic.buf.subarray(mic.buf.length - 2048) : mic.buf;
+    const { freq, clarity } = mic.window > 0 ? detectPitch(slice, mic.sr, true) : { freq: -1, clarity: 0 };
+    if (mic.window > 0 && freq > 0 && rms > sens.floor && clarity > sens.clarity) {
+      // A piano note holds a rock-steady pitch; voices slide and wobble. Require a few
+      // readings in a row that stay within a fraction of a semitone.
+      const mf = 69 + 12 * Math.log2(freq / 440);
+      if (mic.candF != null && Math.abs(mf - mic.candF) < 0.25) {
+        mic.stable++; mic.lo = Math.min(mic.lo, mf); mic.hi = Math.max(mic.hi, mf);
+      } else { mic.candF = mf; mic.stable = 1; mic.lo = mic.hi = mf; }
+      if (mic.stable >= sens.frames && mic.hi - mic.lo < 0.3) {
+        mic.window = 0;
+        heard(Math.round((mic.lo + mic.hi) / 2));
+      }
+    } else { mic.candF = null; mic.stable = 0; }
+  }
+  // Sensitivity slider (0 = strict, 1 = catches everything). 0.5 matches the tuned defaults.
+  const sensEl = document.getElementById('sens');
+  const sens = {};
+  function setSens(v) {
+    const x = Math.max(0, Math.min(1, v));
+    sens.ratio = 1.5 * Math.pow(1.35, 1 - 2 * x);   // loudness jump that counts as a strike: 2.0 .. 1.1
+    sens.floor = 0.0008 * Math.pow(4, 1 - 2 * x);   // quietest sound considered: 0.0032 .. 0.0002
+    sens.clarity = 0.7 + 0.1 * (1 - 2 * x);         // how clean the pitch must be: 0.8 .. 0.6
+    sens.frames = x < 0.34 ? 4 : x < 0.67 ? 3 : 2;   // steady readings needed
+    try { localStorage.setItem('dial-sens', String(x)); } catch { /* private mode */ }
+  }
+  let saved = NaN;
+  try { saved = parseFloat(localStorage.getItem('dial-sens')); } catch { /* private mode */ }
+  sensEl.value = Number.isFinite(saved) ? saved : 0.5;
+  setSens(parseFloat(sensEl.value));
+  sensEl.addEventListener('input', () => setSens(parseFloat(sensEl.value)));
+
+  function heard(midi) { judge(midi); }
+
+  let savedSong = '';
+  try { savedSong = localStorage.getItem('read-song') || ''; } catch { /* private mode */ }
+  chooseSong(savedSong);
+})();
+</script>
+</body>
+</html>

@@ -106,10 +106,12 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 .center-letter { fill: var(--green); font-size: 64px; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .lbl, .ring, .glow, .note-name { transition: none; } }
 </style>
+<link rel="stylesheet" href="../app.css">
+<style>.titlebar .title { font-size: 20px; letter-spacing: .08em; }</style>
 
 <main class="stage">
   <div class="topline">
-    <span class="title">Major scale</span>
+    <span class="titlebar"><a class="home" href="../" aria-label="Home" title="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4.5l8 7M6.5 9.8V19.5h11V9.8"/></svg></a><span class="title">🔥🚸🌭</span><span class="module">Scale dial</span></span>
     <span id="soundMsg" class="sound-msg" role="status" hidden></span>
     <span class="heard" id="heard" role="status" aria-live="polite"></span>
     <label class="sens">Sensitivity <input id="sens" type="range" min="0" max="1" step="0.05" value="0.5"></label>

@@ -1,6 +1,37 @@
 # Chopstix · Piano basics
 
-A friendly web app that teaches beginner piano music theory on a 3D keyboard.
+A friendly web app (🔥🚸🌭) that teaches beginner piano. The home page (`index.html`) has a tile for each module,
+and every module is its own page with a home button and the same look:
+
+- **Read** (`read/`) – a level-up note reading game.
+- **Play** (`play/`) – songs, line by line, with the words.
+- **Scale dial** (`dial/`) – turn a dial to see each major scale.
+- **Lessons** (`lessons/`) – the original 3D piano lessons below.
+- Rhythm is planned.
+
+## Read (`read/`)
+
+One note at a time on a big staff. Answer it and the next note comes up. **Play / Say / Both** picks how:
+play the exact key (real piano through **Mic**, or the on‑screen keys), say the letter out loud (speech
+recognition, Safari or Chrome; the **C D E F G A B** buttons work too), or both.
+
+| Level | Notes | Piano shown |
+| --- | --- | --- |
+| 1 | C E G (the C chord) | middle C to the C above |
+| 2 | C to G | same |
+| 3 | C to B | same |
+| 4 | A below middle C to B (bass clef opens) | two octaves, middle C in the middle |
+| 5 | G below to the C above | same |
+| 6 | E below to the C above | same |
+| 7 | two full octaves, C to C | same |
+
+A right first answer fills the bar by 1; three or more in a row count double, so a quick learner moves up
+faster. A miss takes 1 off, brings that note back two cards later, and makes it come up more often from then on
+(per‑note weights, saved with the level progress in `localStorage` under `read-game`). New notes in a level also
+come up more at first. After two misses the letter shows and the key glows. A full bar unlocks the next level
+with a celebration; any unlocked level can be picked from the 1–7 buttons. Add `?reset` to the URL to start over.
+
+## Lessons (`lessons/`)
 
 ## Lessons
 
@@ -32,7 +63,7 @@ npm start            # serves on http://localhost:8080
 # or: python3 -m http.server 8080
 ```
 
-Open http://localhost:8080. The microphone needs `localhost` or an `https://` address. Opening `index.html` straight from disk won't work, because browsers block JavaScript modules on `file://`.
+Open http://localhost:8080 for the home page. The microphone needs `localhost` or an `https://` address. Opening `index.html` straight from disk won't work, because browsers block JavaScript modules on `file://`.
 
 Any static host works too (for example GitHub Pages pointed at this folder).
 
@@ -52,27 +83,23 @@ npm test   # music theory (scales, spelling, chords) and pitch detection
 - `src/exercise.js` – the exercise types and scoring
 - `src/lessons/` – lesson content
 
-## Note reader (`read/`)
+## Play (`play/`)
 
-A large‑print sight reading practice page, built for an iPad held sideways. A very large staff shows four whole
-notes at a time; play the highlighted one on the real piano (tap **Mic**) or on the on‑screen keys.
+A large‑print song page, built for an iPad held sideways, with the piano keys right under the staff;
+play the highlighted note on the real piano (tap **Mic**) or on the on‑screen keys.
 
-- **Clef:** Treble, Bass, or Both (a grand staff). With Both, middle C shows up on either staff.
-- **How much of the piano:** 2 octaves (C3–C5, an octave either side of middle C), 4 octaves (C2–C6) or all 88 keys
-  (A0–C8). The on‑screen keyboard shows the same stretch, with middle C marked. Notes far above or below the staff
-  are written with 8va / 8vb, as in real music.
 - **Exact notes:** only the exact key counts. Playing C3 when middle C is written says "Right letter, wrong C. Go one octave higher".
 - Right notes turn green and show their letter; wrong ones shake red. After two misses the letter appears under
   the note and the matching key glows. The keys always show their letters.
 - Tap a note on the staff to hear it; its key on the keyboard lights up blue for a moment.
 
-**Songs.** The **Song** list starts with **Random** (the random notes above), then real songs A to Z; the first is
+**Songs.** The **Song** list has real songs A to Z; the first is
 *Danny Boy* (F major, 4/4, one bar per line so the notes stay big) and *O Holy Night* (C major, 6/8), each transcribed from a lead sheet. A song is drawn in real note values
 (quarter, eighth and dotted notes, rests, ties, time signature) with the lyrics under it, one line of the
 printed page at a time. **Part** picks one line, a lettered section (several lines, played one after another)
 or the whole song. **Play it** plays the whole chosen part (a line, a section or the whole song) at the song's tempo, turning the staff to each next line as it goes; tap it again (Stop) to stop. **Back** and **Next** step a line (or a part) at a time, **Again** restarts the part,
 and **Auto next** (on by default) moves straight on to the next line or section when one is finished.
-Tied notes are played once. Songs live in the `SONGS` list in `read/index.html`, written as `pitch beats lyric`
+Tied notes are played once. Songs live in the `SONGS` list in `play/index.html`, written as `pitch beats lyric`
 tokens (beats in eighth notes, `~` tie, `^` fermata, `r` rest). A song can set `key` (flats negative, sharps positive),
 `time` and a `pickup` (in eighths); notes follow the key signature unless written with `#`, `b` or `n`.
 
