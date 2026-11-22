@@ -47,8 +47,8 @@ body {
 .titlebar { width: 100%; }
 .titlebar .title { font-size: 26px; letter-spacing: .08em; }
 .topline { width: 100%; display: flex; align-items: center; gap: 10px; }
-#hear { margin-right: auto; }
-.songmode #hear { margin-right: auto; }
+/* Mic and Sound always sit at the right end, in random practice and in songs */
+.micpill { margin-left: auto; }
 /* back/again/next sit in the middle of the page, with Again exactly at the centre (Auto hangs off the right) */
 .topline { position: relative; }
 .songnav { position: absolute; left: 50%; transform: translateX(calc(-34px - 8px - 17px)); }
@@ -167,6 +167,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   <div class="titlebar"><span class="title">🔥🚸🌭</span></div>
   <div class="topline">
     <label class="pick"><select id="songSel" aria-label="Song list"></select></label>
+    <button id="hear" class="sound" hidden>Play it</button>
     <label class="pick" id="partPick" hidden><select id="partSel" aria-label="Part of the song"></select></label>
     <span class="seg" id="clefs" role="group" aria-label="Clef">
       <button data-v="treble">Treble</button>
@@ -178,7 +179,6 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       <button data-v="4">4 octaves</button>
       <button data-v="all">All 88 keys</button>
     </span>
-    <button id="hear" class="sound" hidden>Play it</button>
     <span class="songnav" id="songNav" hidden>
       <button id="back" class="round" aria-label="Back" title="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
       <button id="again" class="round" aria-label="Again" title="Again"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4.5H15"/></svg></button>
@@ -670,10 +670,23 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     heardEl.textContent = '';
     drawSong();
   }
-  // "Play it": play the line at the song's tempo, lighting each note as it sounds.
-  function stopPlaying() { playTimers.forEach(clearTimeout); playTimers = []; notesG && notesG.querySelectorAll('.playing').forEach((g) => g.classList.remove('playing')); }
+  // "Play it": play the whole chosen part (one line, a section or the whole song) at the
+  // song's tempo, lighting each note as it sounds. The staff turns to each next line by itself.
+  const hearBtn = document.getElementById('hear');
+  function stopPlaying() {
+    playTimers.forEach(clearTimeout); playTimers = [];
+    notesG && notesG.querySelectorAll('.playing').forEach((g) => g.classList.remove('playing'));
+    hearBtn.textContent = 'Play it';
+  }
   function hearIt() {
-    stopPlaying();
+    if (playTimers.length) { stopPlaying(); return; } // tapping again stops it
+    const p = parts[partIdx];
+    songLine = p.from; heardEl.textContent = ''; drawSong();
+    hearBtn.textContent = 'Stop';
+    playLine();
+  }
+  function playLine() {
+    const p = parts[partIdx];
     const events = song.parsed[songLine];
     let t = 0;
     events.forEach((e, i) => {
@@ -687,6 +700,12 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       }
       t += e.beats * song.eighth;
     });
+    playTimers.push(setTimeout(() => {
+      playTimers = [];
+      if (songLine < p.to) { songLine++; drawSong(); playLine(); return; }
+      stopPlaying();
+      if (p.to > p.from) { songLine = p.from; drawSong(); } // back to the start, ready to play along
+    }, t * 1000));
   }
 
   // ---------- Keyboard: the same stretch of the piano as the notes ----------
