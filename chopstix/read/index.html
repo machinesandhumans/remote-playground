@@ -908,7 +908,10 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 
   const letterOf = (s) => LETTERS[mod7(s)];
   const nameOf = (s) => (s === 0 ? 'Middle C' : letterOf(s));
+  let cardShownAt = 0, prevLetter = null;
   function nextCard() {
+    prevLetter = card ? letterOf(card.s) : null;
+    cardShownAt = performance.now();
     const s = pickNote();
     seenHere[s] = (seenHere[s] || 0) + 1;
     card = { s, midi: stepMidi(s), c: clefFor(s), played: false, said: false, missed: false, misses: 0, done: false };
@@ -954,9 +957,15 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     } else miss(`That was <b class="no">${NAMES[pc]}</b>. Try again`);
   }
   // A note name was said out loud (or tapped on the letter buttons).
-  function onSay(letter) {
+  function onSay(letter, fromVoice) {
     if (!card || card.done || !needSay()) return;
     if (letter === letterOf(card.s)) { card.said = true; check(); return; }
+    if (fromVoice) {
+      // Speech can arrive late: the name said for the last note (often said twice when the first
+      // try seemed missed) must not count as a wrong answer on this one.
+      const since = performance.now() - cardShownAt;
+      if (since < 600 || (letter === prevLetter && since < 3000)) return;
+    }
     flashLetter(letter, false);
     miss(`You said <b class="no">${letter}</b>. Try again`);
   }
@@ -1127,7 +1136,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     g: 'G', gee: 'G', ji: 'G', jee: 'G', gi: 'G', jeep: 'G', ge: 'G', jean: 'G', gene: 'G', gees: 'G',
   };
   // Everyday words that might not be a note: wait a moment to see if something clearer follows.
-  const AMBIG = new Set(['a', 'eh', 'hey', 'if', 'of', 'she', 'ye', 'eight', 'be', 'see', 'sea']);
+  const AMBIG = new Set(['a', 'eh', 'hey', 'if', 'of', 'she', 'ye', 'eight']);
   // The first note-word said, skipping the "a" in "it's a G".
   function findLetter(words) {
     for (let k = 0; k < words.length; k++) {
@@ -1139,12 +1148,12 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     return null;
   }
   const wordsOf = (t) => t.toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/).filter(Boolean);
-  // One short listening session per answer: as soon as a note name is heard it's judged and the
-  // recognizer starts over fresh. (A long session keeps re-reading everything said so far, which got
+  // One short listening session per card: a note name is judged as soon as it's heard, and the
+  // recognizer starts over fresh for the next card. (A long session keeps re-reading everything said so far, which got
   // slower and less accurate card after card, and it could hold back "see"/"e" waiting to be sure.)
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let rec = null, speechOn = false, lastSpeechAt = 0, recFails = [];
-  let used = false, heardAny = false, pend = null, restarting = false, restartGuard = null;
+  let used = false, consumed = 0, heardAny = false, pend = null, restarting = false, restartGuard = null;
   function startSpeech() {
     if (!SR) {
       showMicError({ name: 'NoSpeech' });
@@ -1159,7 +1168,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     const r = new SR();
     rec = r;
     r.lang = 'en-US'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 3;
-    r.onstart = () => { if (rec === r) { used = false; heardAny = false; } };
+    r.onstart = () => { if (rec === r) { used = false; consumed = 0; heardAny = false; } };
     r.onspeechstart = () => { lastSpeechAt = performance.now(); };
     r.onresult = (e) => {
       if (rec !== r) return;
@@ -1168,15 +1177,17 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       if (used) return;
       const res = [...e.results];
       const final = res.length > 0 && res.every((x) => x.isFinal);
-      let hit = null;
+      // only the words said since the last answer in this session count
+      let hit = null, n = 0;
       for (let j = 0; j < 3 && !hit; j++) {
-        const text = res.map((x) => (x[j] || x[0]).transcript).join(' ');
-        hit = findLetter(wordsOf(text));
+        const words = wordsOf(res.map((x) => (x[j] || x[0]).transcript).join(' '));
+        if (j === 0) n = words.length;
+        hit = findLetter(words.slice(consumed));
       }
       clearTimeout(pend);
       if (!hit) return;
-      if (final || !AMBIG.has(hit.word) || !hit.last) answer(hit.letter);
-      else pend = setTimeout(() => { if (rec === r) answer(hit.letter); }, 450);
+      if (final || !AMBIG.has(hit.word) || !hit.last) answer(hit.letter, n);
+      else pend = setTimeout(() => { if (rec === r) answer(hit.letter, n); }, 300);
     };
     r.onerror = (e) => {
       if (rec !== r) return;
@@ -1198,12 +1209,13 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     };
     try { r.start(); } catch (e) { console.warn('speech start', e); }
   }
-  function answer(letter) {
+  // Judge it and keep listening in the same session (restarting leaves a gap where words are lost);
+  // the session starts over at the next card, in the pause while he reads the new note.
+  function answer(letter, n) {
     clearTimeout(pend);
     if (used) return;
-    used = true;
-    onSay(letter);
-    freshSpeech();
+    consumed = Math.max(consumed + 1, n);
+    onSay(letter, true);
   }
   // Throw away what's been heard and listen anew.
   function freshSpeech() {
