@@ -6,7 +6,7 @@ and every module is its own page with a home button and the same look:
 - **Read** (`read/`) – a level-up note reading game.
 - **Play** (`play/`) – songs, line by line, with the words.
 - **Scale dial** (`dial/`) – turn a dial to see each major scale.
-- **Lessons** (`lessons/`) – the original 3D piano lessons below.
+- **Lessons** (`lessons/`) – the original 3D piano lessons below (not linked from the home page for now).
 - Rhythm is planned.
 
 ## Read (`read/`)
