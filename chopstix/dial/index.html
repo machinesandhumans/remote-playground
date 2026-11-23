@@ -159,9 +159,13 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
         <!-- inner wall shadow -->
         <circle r="127" fill="none" stroke="#c4c4bf" stroke-width="5" opacity=".3" filter="url(#soft)"/>
         <g id="rotor">
-          <circle cy="-88" r="16" fill="url(#dimple)" stroke="#d9d9d4" stroke-width=".75"/>
-          <circle cy="-88" r="15" fill="none" stroke="#a9a9a4" stroke-width="2.5" opacity=".32" filter="url(#soft)" transform="translate(-1,-1.5)"/>
-          <path d="M 4 -73.5 A 16 16 0 0 0 14.5 -83" fill="none" stroke="#ffffff" stroke-width="1.2" opacity=".85"/>
+          <!-- finger dimple: moves with the dial, but its shading is counter-rotated in render()
+               so the light always falls from the same side, like the dish around it -->
+          <g id="dimpleShade" transform="translate(0,-88)">
+            <circle r="16" fill="url(#dimple)" stroke="#d9d9d4" stroke-width=".75"/>
+            <circle r="15" fill="none" stroke="#a9a9a4" stroke-width="2.5" opacity=".32" filter="url(#soft)" transform="translate(-1,-1.5)"/>
+            <path d="M 4 15.5 A 16 16 0 0 0 14.5 5" fill="none" stroke="#ffffff" stroke-width="1.2" opacity=".85"/>
+          </g>
           <!-- full-face hit area so the dial turns from anywhere -->
           <circle r="134" fill="transparent"/>
         </g>
@@ -252,8 +256,10 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   let rotation = 0; // degrees, unbounded
   let key = 0;
 
+  const dimpleShade = document.getElementById('dimpleShade');
   function render() {
     rotor.setAttribute('transform', `rotate(${rotation})`);
+    dimpleShade.setAttribute('transform', `translate(0,-88) rotate(${-rotation})`);
   }
   function nearestTurn(target) {
     // same visual angle as target, closest to the current rotation
