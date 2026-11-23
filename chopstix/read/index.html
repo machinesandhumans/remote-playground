@@ -914,6 +914,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     card = { s, midi: stepMidi(s), c: clefFor(s), played: false, said: false, missed: false, misses: 0, done: false };
     drawCard(true);
     keyEls.forEach((k) => k.g.classList.remove('target'));
+    if (speechOn && heardAny) freshSpeech();
     tell(mode === 'say' ? 'Say the note' : mode === 'both' ? 'Play it and say it' : 'Play this note', true);
     showParts();
   }
@@ -1117,69 +1118,108 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   // ---------- Say it: note names by voice ----------
   // Speech recognition hears single letters as words ("see", "bee", "gee"), so map those back.
   const SAY = {
-    a: 'A', ay: 'A', aye: 'A', eh: 'A', hey: 'A', hay: 'A',
-    b: 'B', be: 'B', bee: 'B', bea: 'B', bean: 'B',
-    c: 'C', see: 'C', sea: 'C', si: 'C', cee: 'C', seat: 'C',
-    d: 'D', dee: 'D', de: 'D', di: 'D',
-    e: 'E', ee: 'E', eee: 'E', ea: 'E',
-    f: 'F', ef: 'F', eff: 'F', if: 'F', of: 'F',
-    g: 'G', gee: 'G', ji: 'G', jee: 'G', gi: 'G', jeep: 'G',
+    a: 'A', ay: 'A', aye: 'A', eh: 'A', hey: 'A', hay: 'A', ey: 'A', eight: 'A', aa: 'A',
+    b: 'B', be: 'B', bee: 'B', bea: 'B', bean: 'B', bees: 'B', beat: 'B', bi: 'B',
+    c: 'C', see: 'C', sea: 'C', si: 'C', cee: 'C', seat: 'C', seen: 'C', sees: 'C', seas: 'C', cease: 'C', she: 'C', sie: 'C',
+    d: 'D', dee: 'D', de: 'D', di: 'D', deep: 'D', dean: 'D', dees: 'D',
+    e: 'E', ee: 'E', eee: 'E', ea: 'E', yee: 'E', ye: 'E',
+    f: 'F', ef: 'F', eff: 'F', if: 'F', of: 'F', af: 'F', eft: 'F',
+    g: 'G', gee: 'G', ji: 'G', jee: 'G', gi: 'G', jeep: 'G', ge: 'G', jean: 'G', gene: 'G', gees: 'G',
   };
-  const ONLY_FINAL = new Set(['a', 'eh', 'hey', 'if', 'of', 'e', 'be', 'de', 'see']); // common words: wait until it's sure
+  // Everyday words that might not be a note: wait a moment to see if something clearer follows.
+  const AMBIG = new Set(['a', 'eh', 'hey', 'if', 'of', 'she', 'ye', 'eight', 'be', 'see', 'sea']);
+  // The first note-word said, skipping the "a" in "it's a G".
+  function findLetter(words) {
+    for (let k = 0; k < words.length; k++) {
+      const w = words[k];
+      if (!SAY[w]) continue;
+      if (w === 'a' && SAY[words[k + 1]]) continue;
+      return { letter: SAY[w], word: w, last: k === words.length - 1 };
+    }
+    return null;
+  }
+  const wordsOf = (t) => t.toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/).filter(Boolean);
+  // One short listening session per answer: as soon as a note name is heard it's judged and the
+  // recognizer starts over fresh. (A long session keeps re-reading everything said so far, which got
+  // slower and less accurate card after card, and it could hold back "see"/"e" waiting to be sure.)
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let rec = null, speechOn = false, lastSpeechAt = 0, recFails = [];
+  let used = false, heardAny = false, pend = null, restarting = false, restartGuard = null;
   function startSpeech() {
     if (!SR) {
       showMicError({ name: 'NoSpeech' });
       return false;
     }
     speechOn = true;
-    runRec();
+    makeRec();
     return true;
   }
-  function runRec() {
-    if (!speechOn) return;
+  function makeRec() {
+    if (rec) { const old = rec; rec = null; try { old.abort(); } catch { /* already stopped */ } }
     const r = new SR();
     rec = r;
     r.lang = 'en-US'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 3;
-    const handled = {};
+    r.onstart = () => { if (rec === r) { used = false; heardAny = false; } };
     r.onspeechstart = () => { lastSpeechAt = performance.now(); };
     r.onresult = (e) => {
+      if (rec !== r) return;
       lastSpeechAt = performance.now();
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const res = e.results[i];
-        const alts = [...res].map((a) => a.transcript.toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/).filter(Boolean));
-        const words = alts[0];
-        for (let k = handled[i] || 0; k < words.length; k++) {
-          let letter = null;
-          for (const alt of alts) {
-            const w = alt[k];
-            if (w && SAY[w] && (res.isFinal || !ONLY_FINAL.has(w) || alt.length > k + 1)) { letter = SAY[w]; break; }
-          }
-          // "a C", "it's a G": the article isn't an answer when a letter follows it
-          if (letter === 'A' && words[k] === 'a' && SAY[words[k + 1]]) letter = null;
-          if (letter) { handled[i] = k + 1; onSay(letter); }
-          else if (res.isFinal || k < words.length - 1) handled[i] = k + 1;
-        }
+      heardAny = true;
+      if (used) return;
+      const res = [...e.results];
+      const final = res.length > 0 && res.every((x) => x.isFinal);
+      let hit = null;
+      for (let j = 0; j < 3 && !hit; j++) {
+        const text = res.map((x) => (x[j] || x[0]).transcript).join(' ');
+        hit = findLetter(wordsOf(text));
       }
+      clearTimeout(pend);
+      if (!hit) return;
+      if (final || !AMBIG.has(hit.word) || !hit.last) answer(hit.letter);
+      else pend = setTimeout(() => { if (rec === r) answer(hit.letter); }, 450);
     };
     r.onerror = (e) => {
+      if (rec !== r) return;
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { stopSpeech(); showMicError({ name: 'SpeechBlocked' }); }
       else if (e.error === 'audio-capture') { stopSpeech(); showMicError({ name: 'SpeechBusy' }); }
       else if (e.error === 'network') { stopSpeech(); showMicError({ name: 'SpeechNetwork' }); }
     };
     r.onend = () => {
-      if (!speechOn || rec !== r) return;
-      // it stops itself after a quiet spell; start it again, unless it keeps failing straight away
-      const now = performance.now();
-      recFails = recFails.filter((t) => now - t < 8000); recFails.push(now);
-      if (recFails.length > 6) { stopSpeech(); showMicError({ name: 'SpeechStops' }); return; }
-      setTimeout(runRec, 200);
+      if (rec !== r || !speechOn) return;
+      clearTimeout(restartGuard);
+      if (!restarting) {
+        // it stops itself after a quiet spell; start it again, unless it keeps failing straight away
+        const now = performance.now();
+        recFails = recFails.filter((t) => now - t < 8000); recFails.push(now);
+        if (recFails.length > 6) { stopSpeech(); showMicError({ name: 'SpeechStops' }); return; }
+      }
+      restarting = false;
+      setTimeout(() => { if (rec === r && speechOn) { try { r.start(); } catch { makeRec(); } } }, 100);
     };
     try { r.start(); } catch (e) { console.warn('speech start', e); }
   }
+  function answer(letter) {
+    clearTimeout(pend);
+    if (used) return;
+    used = true;
+    onSay(letter);
+    freshSpeech();
+  }
+  // Throw away what's been heard and listen anew.
+  function freshSpeech() {
+    if (!speechOn || !rec) return;
+    clearTimeout(pend);
+    used = true; // ignore anything still arriving from the old session
+    restarting = true;
+    const r = rec;
+    try { r.abort(); } catch { /* already stopped */ }
+    // if it never reports that it stopped, start a new one
+    clearTimeout(restartGuard);
+    restartGuard = setTimeout(() => { if (rec === r && speechOn && restarting) { restarting = false; makeRec(); } }, 1200);
+  }
   function stopSpeech() {
     speechOn = false;
+    clearTimeout(pend); clearTimeout(restartGuard); restarting = false;
     if (rec) { const r = rec; rec = null; try { r.abort(); } catch { /* already stopped */ } }
     if (!mic) setListeningUi(false);
   }
