@@ -13,23 +13,25 @@ and every module is its own page with a home button and the same look:
 
 One note at a time on a big staff. Answer it and the next note comes up. **Play / Say / Both** picks how:
 play the exact key (real piano through **Mic**, or the on‑screen keys), say the letter out loud (speech
-recognition, Safari or Chrome; the **C D E F G A B** buttons work too), or both.
+recognition, Safari or Chrome; the **C D E F G A B** buttons work too), or **Play & Say**.
 
-| Level | Notes | Piano shown |
-| --- | --- | --- |
-| 1 | C E G (the C chord) | middle C to the C above |
-| 2 | C to G | same |
-| 3 | C to B | same |
-| 4 | A below middle C to B (bass clef opens) | two octaves, middle C in the middle |
-| 5 | G below to the C above | same |
-| 6 | E below to the C above | same |
-| 7 | two full octaves, C to C | same |
+**Treble / Bass / Both** picks the clef. Each has 5 levels that start at middle C, and each remembers its own progress.
+
+| Level | Treble | Bass | Both (grand staff) |
+| --- | --- | --- | --- |
+| 1 | C E G | C A F (down) | A3 to E4 |
+| 2 | C4 to G4 | G3 to C4 | F3 to G4 |
+| 3 | C4 to C5 | C3 to C4 | C3 to C5 |
+| 4 | up to F5 (top line) | down to G2 (bottom line) | G2 to F5 |
+| 5 | up to A5 (2 above the staff) | down to E2 (2 below the staff) | E2 to A5 |
+
+The piano shows whole octaves around the notes in play, with middle C at one end (or in the middle for Both).
 
 A right first answer fills the bar by 1; three or more in a row count double, so a quick learner moves up
 faster. A miss takes 1 off, brings that note back two cards later, and makes it come up more often from then on
 (per‑note weights, saved with the level progress in `localStorage` under `read-game`). New notes in a level also
 come up more at first. After two misses the letter shows and the key glows. A full bar unlocks the next level
-with a celebration; any unlocked level can be picked from the 1–7 buttons. Add `?reset` to the URL to start over.
+with a celebration; any unlocked level can be picked from the 1–5 buttons. Add `?reset` to the URL to start over.
 
 ## Lessons (`lessons/`)
 
