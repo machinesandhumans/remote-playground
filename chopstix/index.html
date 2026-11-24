@@ -101,7 +101,8 @@ h1 { margin: 0; font-size: clamp(40px, 8vw, 76px); text-align: center; letter-sp
     const p = JSON.parse(localStorage.getItem('read-game') || 'null');
     if (p && p.unlocked > 0) {
       const b = document.getElementById('readBadge');
-      b.textContent = 'Level ' + (p.level || p.unlocked);
+      const names = { treble: 'Treble', bass: 'Bass', both: 'Both' };
+      b.textContent = (names[p.book] ? names[p.book] + ' · ' : '') + 'Level ' + (p.level || p.unlocked);
       b.hidden = false;
     }
   } catch { /* private mode */ }
