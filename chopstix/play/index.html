@@ -284,6 +284,16 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   const allowed = (s) => s >= lo && s <= hi && (clef === 'both' || (clef === 'treble' ? s >= 0 : s <= 0));
 
   const staff = document.getElementById('staff');
+  // The room the staff has, measured with the staff itself hidden: otherwise the old drawing props
+  // its box open and a turn of the phone or iPad leaves the notes stuck small. When the row has no
+  // height of its own (phone held upright), use the narrowest staff, which gives the biggest notes.
+  function staffAspect() {
+    const wrap = staff.parentNode, prev = staff.style.display;
+    staff.style.display = 'none';
+    const box = wrap.getBoundingClientRect();
+    staff.style.display = prev;
+    return box.width > 0 && box.height > 40 ? box.width / box.height : 0;
+  }
   let notesG = null, view = { top: 0, bottom: 0 };
   function drawStaff() {
     staff.textContent = '';
@@ -308,8 +318,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     top -= 24; bottom += 80; // room for the letter under the notes
     view = { top, bottom };
     // Stretch the staff sideways to fill the space, so the notes can be as tall as possible.
-    const box = staff.parentNode.getBoundingClientRect();
-    const aspect = box.width > 0 && box.height > 0 ? box.width / box.height : 2.5;
+    const aspect = staffAspect();
     VW = Math.max(900, Math.min(6000, (bottom - top) * aspect));
     // four notes, spread out but kept close enough to read as one line
     const first = 380, gap = Math.min(560, (VW - 140 - first) / 3);
@@ -576,8 +585,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
       xs.push({ x: x + (e.sharp ? SP : 0), w });
       x += w + (e.endsBar ? SP * .7 : 0);
     });
-    const box = staff.parentNode.getBoundingClientRect();
-    const aspect = box.width > 0 && box.height > 0 ? box.width / box.height : 2.5;
+    const aspect = staffAspect();
     VW = Math.max(x + 40, (vBottom - vTop) * aspect);
     const stretch = (VW - 50 - start) / (x - start);
     xs.forEach((p) => { p.x = start + (p.x - start) * stretch; p.w *= stretch; });
@@ -945,6 +953,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   });
   document.getElementById('hear').addEventListener('click', hearIt);
   let resizeTimer = null;
+  // iPad and iPhone report a turn before the page has settled, so redraw again a moment later.
+  window.addEventListener('orientationchange', () => setTimeout(() => window.dispatchEvent(new Event('resize')), 400));
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
