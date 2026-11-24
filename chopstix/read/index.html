@@ -195,7 +195,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 @media (prefers-reduced-motion: reduce) { .note.shake { animation: none; } .target .aim { animation: none; opacity: 1; } }
 
 /* ---------- Read: the level-up game ---------- */
-.stage { grid-template-rows: auto auto minmax(0, 60fr) auto minmax(0, 34fr); }
+.stage { grid-template-rows: auto auto minmax(0, 68fr) auto minmax(0, 28fr); }
 .titlebar { width: 100%; }
 .titlebar .title { margin-right: 0; }
 /* progress: level name, a bar that fills up, and the streak */
@@ -276,7 +276,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   .progress .bar { flex: 1; }
 }
 @media (max-width: 900px) and (max-height: 500px) {
-  .stage { grid-template-rows: auto auto minmax(0, 62fr) auto minmax(0, 38fr); }
+  .stage { grid-template-rows: auto auto minmax(0, 72fr) auto minmax(0, 28fr); }
   .titlebar { display: flex; }
   .titlebar .title { font-size: 16px; }
   .status, .status:has(.err) { flex-wrap: nowrap; min-height: 0; }
@@ -391,6 +391,16 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   const allowed = (s) => levelNotes().includes(s);
 
   const staff = document.getElementById('staff');
+  // The room the staff has, measured with the staff itself hidden: otherwise the old drawing props
+  // its box open and a turn of the phone or iPad leaves the notes stuck small. When the row has no
+  // height of its own (phone held upright), use the narrowest staff, which gives the biggest notes.
+  function staffAspect() {
+    const wrap = staff.parentNode, prev = staff.style.display;
+    staff.style.display = 'none';
+    const box = wrap.getBoundingClientRect();
+    staff.style.display = prev;
+    return box.width > 0 && box.height > 40 ? box.width / box.height : 0;
+  }
   let notesG = null, view = { top: 0, bottom: 0 };
   function drawStaff() {
     staff.textContent = '';
@@ -415,9 +425,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     top -= 24; bottom += 80; // room for the letter under the notes
     view = { top, bottom };
     // Stretch the staff sideways to fill the space, so the notes can be as tall as possible.
-    const box = staff.parentNode.getBoundingClientRect();
-    const aspect = box.width > 0 && box.height > 0 ? box.width / box.height : 2.5;
-    VW = Math.max(900, Math.min(6000, (bottom - top) * aspect));
+    const aspect = staffAspect();
+    VW = Math.max(700, Math.min(6000, (bottom - top) * aspect));
     SLOTS = [Math.max(420, (VW + 220) / 2)]; // one note, in the middle of the staff
     staff.setAttribute('viewBox', `0 ${top} ${VW} ${bottom - top}`);
     el('rect', { class: 'paper', x: 0, y: top, width: VW, height: bottom - top, rx: 14 }, staff);
@@ -1330,6 +1339,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 
   // ---------- Start ----------
   let resizeTimer = null;
+  // iPad and iPhone report a turn before the page has settled, so redraw again a moment later.
+  window.addEventListener('orientationchange', () => setTimeout(() => window.dispatchEvent(new Event('resize')), 400));
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => { drawStaff(); if (card) drawCard(false); }, 150);
