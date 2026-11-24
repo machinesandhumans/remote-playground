@@ -240,6 +240,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 .voiceonly.listening .micpill .mic { padding-left: 10px; }
 /* only one note at a time, so it needs no highlight column */
 .note.now .spot { opacity: 0; }
+.note .name.side { text-anchor: start; }
 .note.enter { animation: enter .3s ease-out; }
 @keyframes enter { from { opacity: 0; transform: translateY(14px); } }
 /* level-up celebration */
@@ -276,13 +277,28 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   .progress .bar { flex: 1; }
 }
 @media (max-width: 900px) and (max-height: 500px) {
-  .stage { grid-template-rows: auto auto minmax(0, 72fr) auto minmax(0, 28fr); }
+  /* Phone held sideways: the staff gets nearly all the height. The title shrinks to a thin
+     progress line, the "play this note" line sits on top of the staff, and the keys get small. */
+  .stage { grid-template-rows: auto auto minmax(0, 78fr) auto minmax(0, 22fr); gap: 4px; }
   .titlebar { display: flex; }
-  .titlebar .title { font-size: 16px; }
+  .titlebar .title, .titlebar .module, #lvlName, #count, #roll { display: none !important; }
+  .progress { margin-left: 0; width: 100%; }
+  .progress .bar { flex: 1; width: auto; height: 5px; }
+  .home, .lvl { width: 28px; height: 28px; font-size: 13px; }
+  .topline { gap: 6px; }
+  .levels { gap: 3px; }
+  .seg button { padding: 5px 7px; letter-spacing: .02em; }
+  .micpill .mic { padding-left: 7px; padding-right: 7px; letter-spacing: .04em; }
+  .listening .micpill #sens { width: 60px; margin-left: 6px; }
+  #sound { display: none; } /* sound stays on; the room goes to the staff */
   .status, .status:has(.err) { flex-wrap: nowrap; min-height: 0; }
   .heard { width: auto; margin-right: auto; text-align: left; }
+  .staff-wrap { grid-column: 1; }
+  body:not(.say) .status { grid-row: 3; grid-column: 1; align-self: start; justify-self: end; width: auto; z-index: 2; pointer-events: none; font-size: 15px; padding: 8px 14px 0 0; }
+  body:not(.say) .status:has(.err) { justify-self: stretch; background: rgba(255,255,255,.92); padding: 8px 14px; }
   .letter { width: 34px; height: 34px; font-size: 16px; }
 }
+@media (min-width: 720px) and (max-width: 900px) and (max-height: 500px) { .topline { flex-wrap: nowrap; } }
 </style>
 <link rel="stylesheet" href="../app.css">
 </head>
@@ -422,7 +438,9 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
         grow(y - SP / 2 - (mark && c === 'treble' ? SP * 1.3 : 0), y + SP / 2 + (mark && c === 'bass' ? SP * 1.3 : 0));
       });
     }
-    top -= 24; bottom += 80; // room for the letter under the notes
+    // room for the letter under the note (on a sideways phone it goes beside the note instead)
+    const compact = matchMedia('(max-width: 900px) and (max-height: 500px)').matches;
+    top -= compact ? 8 : 24; bottom += compact ? 12 : 80;
     view = { top, bottom };
     // Stretch the staff sideways to fill the space, so the notes can be as tall as possible.
     const aspect = staffAspect();
@@ -958,9 +976,11 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     ledgers(g, c, d, x);
     el('path', { class: 'head', d: WHOLE, transform: `translate(${x - 211 * FS} ${y}) scale(${FS} ${-FS})` }, g);
     if (mark) { const o = el('text', { class: 'octave', x, y: c === 'treble' ? y - SP * 1.05 : y + SP * 1.45 }, g); o.textContent = mark; }
-    const t = el('text', { class: 'name', x, y: view.bottom - 36 }, g);
+    const side = matchMedia('(max-width: 900px) and (max-height: 500px)').matches;
+    const t = el('text', side ? { class: 'name side', x: x + SP * 1.3, y: y + SP * .38 } : { class: 'name', x, y: view.bottom - 36 }, g);
     t.textContent = letterOf(card.s);
-    if (card.s === 0) { const m = el('text', { class: 'mid-c name', x, y: view.bottom - 12 }, g); m.textContent = 'Middle C'; }
+    if (card.s === 0 && side) { t.textContent = 'Middle C'; t.classList.add('small'); }
+    else if (card.s === 0) { const m = el('text', { class: 'mid-c name', x, y: view.bottom - 12 }, g); m.textContent = 'Middle C'; }
     el('rect', { x: x - 85, y: view.top, width: 170, height: view.bottom - view.top, fill: 'transparent' }, g);
     g.addEventListener('pointerdown', () => { tone(card.midi); showKey(card.midi); });
     card.g = g;
