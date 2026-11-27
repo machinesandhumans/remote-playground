@@ -437,7 +437,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
 
   // ---------- Songs ----------
   // Each song is written out line by line, like the printed page. A note is "pitch beats lyric":
-  // beats are in eighth notes (1 = eighth, 2 = quarter, 3 = dotted quarter, 6 = dotted half),
+  // beats are in eighth notes (.5 = sixteenth, 1 = eighth, 2 = quarter, 3 = dotted quarter, 6 = dotted half),
   // "~" ties it to the next note, "^" adds a fermata, "r" is a rest, "|" is a bar line.
   // Songs are kept in A to Z order in the Song list (A to Z).
   const SONGS = [
@@ -500,6 +500,44 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
         'F4 8 me!',
       ],
     },
+    {
+      // D minor (B flat in the key signature, so "B4" here is B flat), 3/4, quarter = 120.
+      // Two bars per line. The intro is the piano's tune; then the verse three times, each
+      // with its own words (verses 1 and 2 end on the 1.2. ending, verse 3 on the 3. ending).
+      id: 'scarborough-fair', title: 'Scarborough Fair', by: 'Traditional English Ballad', time: [3, 4], key: -1, eighth: 0.25,
+      sections: [['Intro', 0, 1], ['Verse 1', 2, 9], ['Verse 2', 10, 17], ['Verse 3', 18, 25]],
+      lines: [
+        'D4 4 | D4 2 | A4 2 | G4 2 | A4 2',
+        'C5 3 | B4 1 | A4 1 | G4 1 | A4 6',
+        // Verse 1
+        'D4 4 Are | D4 2 you | A4 2 go- | G4 2 ing | A4 2 to',
+        'E4 3 Scar- | F4 1 bor- | E4 2 ough | D4 6 Fair?',
+        'A4 4 Pars- | C5 2 ley, | D5 .5 sage, | C5 .5 | D5 1~ | D5 3 | C5 1 rose-',
+        'A4 2 mar- | Bn4 2 y | G4 2 and | A4 4 thyme. | A4 2 Re-',
+        'D5 4 mem- | D4 2 ber | F4 4 me | G4 2 to',
+        'A4 2 one | G4 2 who | F4 2 lives | D4 1 there, | C4 1~ | C4 2 | D4 2 for',
+        'D4 4 once | A4 2 she | G4 4 was | F4 2 a',
+        'E4 2 true | D4 2 love | C4 2 of | D4 4 mine. | r 2',
+        // Verse 2
+        'D4 4 Have | D4 2 her | A4 2 make | G4 2 me | A4 2 a',
+        'E4 3 cam- | F4 1 | E4 2 bric | D4 6 shirt,',
+        'A4 4 pars- | C5 2 ley, | D5 .5 sage, | C5 .5 | D5 1~ | D5 3 | C5 1 rose-',
+        'A4 2 mar- | Bn4 2 y | G4 2 and | A4 4 thyme. | A4 2 With-',
+        'D5 4 out | D4 2 a | F4 4 seam | G4 2 or',
+        'A4 2 fine | G4 2 nee- | F4 2 dle- | D4 1 work, | C4 1~ | C4 2 | D4 2 and',
+        'D4 4 then | A4 2 she\'ll | G4 4 be | F4 2 a',
+        'E4 2 true | D4 2 love | C4 2 of | D4 4 mine. | r 2',
+        // Verse 3
+        'D4 4 Have | D4 2 her | A4 2 wash | G4 2 it | A4 2 in',
+        'E4 3 yon- | F4 1 der | E4 2 dry | D4 6 well,',
+        'A4 4 pars- | C5 2 ley, | D5 .5 sage, | C5 .5 | D5 1~ | D5 3 | C5 1 rose-',
+        'A4 2 mar- | Bn4 2 y | G4 2 and | A4 4 thyme. | A4 2 Where',
+        'D5 4 ne\'er | D4 2 a | F4 4 drop | G4 2 of',
+        'A4 2 wa- | G4 2 ter | F4 2 e\'er | D4 1 fell, | C4 1~ | C4 2 | D4 2 and',
+        'D4 4 then | A4 2 she\'ll | G4 4 be | F4 2 a',
+        'E4 2 true | D4 2 love | C4 2 of | D4 4 mine. | r 2',
+      ],
+    },
   ];
   // Turn a line's text into measures of events.
   // Key signatures: the order sharps and flats are added, and where each sits on the treble staff.
@@ -516,7 +554,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     let filled = pickup ? per - pickup : 0; // a pickup bar starts partway in
     text.split('|').map((t) => t.trim()).filter(Boolean).forEach((tok) => {
       const [p, d, ...rest] = tok.split(' ');
-      const beats = parseInt(d, 10);
+      const beats = parseFloat(d); // .5 is a sixteenth
       const ev = { rest: p === 'r', beats, tie: d.includes('~'), fermata: d.includes('^'), lyric: rest.join(' ') };
       if (!ev.rest) {
         // A note follows the key signature (B4 in F major is B flat) unless it says #, b or n.
@@ -541,7 +579,7 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   // The parts of a song you can practice: each line, each lettered section, or the whole thing.
   function partsOf(song) {
     const first = (i) => song.parsed[i].filter((e) => e.lyric).slice(0, 5).map((e) => e.lyric).join(' ').replace(/- /g, '');
-    const parts = song.parsed.map((_, i) => ({ label: `Line ${i + 1}: ${first(i)}…`, from: i, to: i }));
+    const parts = song.parsed.map((_, i) => ({ label: first(i) ? `Line ${i + 1}: ${first(i)}…` : `Line ${i + 1}: (piano tune, no words)`, from: i, to: i }));
     song.sections.forEach(([name, a, b]) => parts.push({ label: `${name} (lines ${a + 1}–${b + 1})`, from: a, to: b }));
     parts.push({ label: `Whole song (${song.lines.length} lines)`, from: 0, to: song.lines.length - 1 });
     return parts;
@@ -561,10 +599,37 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   const accGlyph = (a) => (a === '#' ? G.sharp : a === 'b' ? G.flat : G.natural);
   const keyWidth = (key) => Math.abs(key) * SP * .95 + (key ? SP * .4 : 0);
 
+  // Group notes for beaming: a beat (quarter) made of short notes that has a sixteenth in it.
+  // Marks each note in a group with e.beam = { down } and returns the groups.
+  function beamGroups(events) {
+    if (events.beamed) return events.beamed;
+    const groups = [];
+    let pos = 0;
+    for (let i = 0; i < events.length;) {
+      if (pos % 2 === 0) {
+        const grp = [];
+        let sum = 0, j = i;
+        while (j < events.length && !events[j].rest && events[j].beats <= 1 && sum < 2) { sum += events[j].beats; grp.push(events[j]); j++; }
+        if (sum === 2 && grp.length > 1 && grp.some((e) => e.beats === .5)) {
+          const down = grp.reduce((a, e) => a + e.s, 0) / grp.length >= 6;
+          grp.forEach((e) => { e.beam = { down }; });
+          groups.push(grp);
+          grp.forEach((e) => { pos += e.beats; });
+          i = j;
+          continue;
+        }
+      }
+      pos += events[i].beats; i++;
+    }
+    events.beamed = groups;
+    return groups;
+  }
+
   // Draw the current line of the song on the big staff, in real note values.
   function drawSong() {
     staff.textContent = '';
     const events = song.parsed[songLine];
+    beamGroups(events);
     const top = 0, bottom = 4 * SP, mid = 2 * SP;
     // vertical room for every line of the song, so the size never jumps between lines
     let lowS = 99, highS = -99;
@@ -624,8 +689,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
         if (e.acc) glyph(g, accGlyph(e.acc), nx - SP * .35 - 249 * FS, y, 'head');
         const whole = e.beats >= 8, hollow = e.beats >= 4;
         glyph(g, whole ? WHOLE : hollow ? G.half : G.black, whole ? nx - 63 * FS : nx, y, 'head');
-        const down = e.s >= 6; // on or above the middle line: stem goes down
-        if (whole) { /* no stem */ } else if (down) {
+        const down = e.beam ? e.beam.down : e.s >= 6; // on or above the middle line: stem goes down
+        if (whole || e.beam) { /* no stem, or drawn with its beam below */ } else if (down) {
           el('rect', { class: 'stem', x: nx, y: y + .168 * SP, width: STEM, height: STEM_LEN - .168 * SP }, g);
           if (e.beats === 1) glyph(g, G.down, nx, y + STEM_LEN, 'head');
         } else {
@@ -651,6 +716,28 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
         const bx = nx + w + SP * .35 * stretch;
         const last = i === events.length - 1;
         el('line', { class: 'bar', x1: last ? VW - 30 : bx, x2: last ? VW - 30 : bx, y1: top, y2: bottom }, staff);
+      }
+    });
+    // beams: sixteenths are beamed with their neighbors in the same beat, like the printed page
+    beamGroups(events).forEach((grp) => {
+      const { down } = grp[0].beam, d = down ? 1 : -1;
+      const ys = grp.map((e) => yOf('treble', e.s));
+      const end = down ? Math.max(...ys) + STEM_LEN : Math.min(...ys) - STEM_LEN; // one flat beam
+      const sx = (e) => (down ? e.x : e.x + HEAD - STEM);
+      grp.forEach((e, k) => {
+        const y = ys[k], y0 = y + d * .168 * SP;
+        el('rect', { class: 'stem', x: sx(e), y: Math.min(y0, end), width: STEM, height: Math.abs(end - y0) }, e.g);
+      });
+      const BEAM = SP * .5;
+      const bar = (x1, x2, lvl) => el('rect', { class: 'stem', x: x1, y: end - (down ? BEAM : 0) - d * lvl * SP * .8, width: x2 - x1 + STEM, height: BEAM }, grp[0].g);
+      bar(sx(grp[0]), sx(grp[grp.length - 1]), 0);
+      for (let k = 0; k < grp.length; k++) { // second beam over each run of sixteenths
+        if (grp[k].beats !== .5) continue;
+        let j = k;
+        while (j + 1 < grp.length && grp[j + 1].beats === .5) j++;
+        if (j > k) bar(sx(grp[k]), sx(grp[j]), 1);
+        else bar(sx(grp[k]), sx(grp[k]) + HEAD * .7, 1); // a lone sixteenth gets a stub
+        k = j;
       }
     });
     // ties: a curve from a note to the next one, on the side away from the stems
