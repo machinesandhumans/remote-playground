@@ -96,7 +96,7 @@ play the highlighted note on the real piano (tap **Mic**) or on the on‑screen 
 - Tap a note on the staff to hear it; its key on the keyboard lights up blue for a moment.
 
 **Songs.** The **Song** list has real songs A to Z; the first is
-*Danny Boy* (F major, 4/4, one bar per line so the notes stay big), *O Holy Night* (C major, 6/8) and *Scarborough Fair* (D minor, 3/4, the piano intro then all three verses), each transcribed from a lead sheet. A song is drawn in real note values
+*Danny Boy* (F major, 4/4, one bar per line so the notes stay big), *O Holy Night* (C major, 6/8) , *Scarborough Fair* (D minor, 3/4, the piano intro then all three verses) and *Canon in D* (D major, 2/2, the right-hand tune of an easy piano version), each transcribed from a lead sheet. A song is drawn in real note values
 (quarter, eighth, sixteenth and dotted notes, rests, ties, time signature) with the lyrics under it, one line of the
 printed page at a time. **Part** picks one line, a lettered section (several lines, played one after another)
 or the whole song. **Play it** plays the whole chosen part (a line, a section or the whole song) at the song's tempo, turning the staff to each next line as it goes; tap it again (Stop) to stop. **Back** and **Next** step a line (or a part) at a time, **Again** restarts the part,
