@@ -538,6 +538,50 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
         'E4 2 true | D4 2 love | C4 2 of | D4 4 mine. | r 2',
       ],
     },
+    {
+      // D major (F sharp and C sharp in the key signature, so "F5" here is F sharp), cut time
+      // (2/2), quarter = 120. The right-hand tune of an easy piano version; where it plays two
+      // notes at once (bars 9 to 12), the top note is the tune. Two bars a line, one where the
+      // bar is all eighth notes.
+      id: 'canon-in-d', title: 'Canon in D', by: 'Johann Pachelbel', time: [2, 2], key: 2, eighth: 0.25,
+      sections: [['Opening', 0, 5], ['Quarter notes', 6, 11], ['Eighth notes', 12, 26], ['Ending', 27, 33]],
+      lines: [
+        'F5 4 | E5 4 | D5 4 | C5 4',
+        'B4 4 | A4 4 | B4 4 | C5 4',
+        'F5 4 | E5 4 | D5 4 | C5 4',
+        'B4 4 | A4 4 | B4 4 | C5 4',
+        'F5 4 | E5 4 | D5 4 | C5 4',
+        'B4 4 | A4 4 | B4 4 | C5 4',
+        'D5 2 | C5 2 | D5 2 | A4 2 | C5 2 | F5 2 | A5 2 | B5 2',
+        'G5 2 | F5 2 | E5 2 | G5 2 | F5 2 | E5 2 | D5 2 | C5 2',
+        'B4 2 | C5 2 | D5 2 | E5 2 | F5 2 | E5 2 | D5 2 | C5 2',
+        'B4 2 | C5 2 | D5 2 | E5 2 | F5 2 | D5 2 | E5 2 | A5 1 | B5 1',
+        'G5 2 | F5 2 | E5 2 | G5 2 | F5 2 | E5 2 | D5 2 | C5 2',
+        'B4 2 | D5 2 | D5 2 | C5 2 | A5 2 | F5 1 | G5 1 | A5 2 | F5 1 | G5 1',
+        'A5 1 | A4 1 | B4 1 | C5 1 | D5 1 | E5 1 | F5 1 | G5 1',
+        'F5 2 | D5 1 | E5 1 | F5 2 | F4 1 | G4 1',
+        'A4 1 | B4 1 | A4 1 | G4 1 | A4 1 | F4 1 | G4 1 | A4 1',
+        'G4 2 | B4 1 | A4 1 | G4 2 | F4 1 | E4 1',
+        'F4 1 | E4 1 | D4 1 | E4 1 | F4 1 | G4 1 | A4 1 | B4 1',
+        'G4 2 | B4 1 | A4 1 | B4 2 | C5 1 | D5 1',
+        'C5 1 | B4 1 | C5 1 | D5 1 | E5 1 | F5 1 | G5 1 | A5 1',
+        'A5 2 | F5 1 | G5 1 | A5 2 | F5 1 | G5 1',
+        'A5 1 | A4 1 | B4 1 | C5 1 | D5 1 | E5 1 | F5 1 | G5 1',
+        'F5 2 | D5 1 | E5 1 | F5 2 | F4 1 | G4 1',
+        'A4 1 | B4 1 | A4 1 | G4 1 | A4 1 | D5 1 | C5 1 | D5 1',
+        'B4 2 | D5 1 | C5 1 | B4 2 | A4 1 | G4 1',
+        'A4 1 | G4 1 | F4 1 | G4 1 | A4 1 | B4 1 | C5 1 | D5 1',
+        'B4 2 | D5 1 | C5 1 | D5 2 | C5 1 | B4 1',
+        'C5 1 | D5 1 | E5 1 | D5 1 | C5 1 | D5 1 | B4 1 | C5 1',
+        'D5 6 | F5 2 | F5 2 | G5 2 | F5 2 | E5 2',
+        'D5 6 | D5 2 | D5 2 | E5 2 | D5 2 | C5 2',
+        'B4 6 | D5 2 | D5 4 | A4 4',
+        'D5 2 | Cn5 2 | B4 2 | C#5 2 | D5 2 | A4 2 | C5 2 | E5 2',
+        'F5 4 | E5 4 | D5 4 | C5 4',
+        'B4 4 | A4 4 | B4 4 | C5 4',
+        'D5 8',
+      ],
+    },
   ];
   // Turn a line's text into measures of events.
   // Key signatures: the order sharps and flats are added, and where each sits on the treble staff.
@@ -552,17 +596,21 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
     const per = time[0] * 8 / time[1]; // eighths per measure
     const events = [];
     let filled = pickup ? per - pickup : 0; // a pickup bar starts partway in
+    let barAlter = {}, curBar = -1; // an accidental lasts to the end of its bar
     text.split('|').map((t) => t.trim()).filter(Boolean).forEach((tok) => {
       const [p, d, ...rest] = tok.split(' ');
       const beats = parseFloat(d); // .5 is a sixteenth
       const ev = { rest: p === 'r', beats, tie: d.includes('~'), fermata: d.includes('^'), lyric: rest.join(' ') };
+      const bar = Math.floor(filled / per);
+      if (bar !== curBar) { barAlter = {}; curBar = bar; }
       if (!ev.rest) {
         // A note follows the key signature (B4 in F major is B flat) unless it says #, b or n.
         const m = /^([A-G])([#bn]?)(\d)$/.exec(p);
         ev.s = 7 * (+m[3] - 4) + LETTERS.indexOf(m[1]);
-        const inKey = keyAlter(key, m[1]);
+        const inKey = ev.s in barAlter ? barAlter[ev.s] : keyAlter(key, m[1]);
         const alter = m[2] === '#' ? 1 : m[2] === 'b' ? -1 : m[2] === 'n' ? 0 : inKey;
-        ev.acc = m[2] && alter !== inKey ? m[2] : ''; // only print an accidental the key doesn't already give
+        ev.acc = m[2] && alter !== inKey ? m[2] : ''; // only print an accidental the key (or the bar) doesn't already give
+        if (ev.acc) barAlter[ev.s] = alter;
         ev.sharp = !!ev.acc; // (kept for spacing: any printed accidental)
         ev.midi = stepMidi(ev.s) + alter;
       }
@@ -579,7 +627,8 @@ svg { display: block; overflow: visible; max-width: 100%; max-height: 100%; widt
   // The parts of a song you can practice: each line, each lettered section, or the whole thing.
   function partsOf(song) {
     const first = (i) => song.parsed[i].filter((e) => e.lyric).slice(0, 5).map((e) => e.lyric).join(' ').replace(/- /g, '');
-    const parts = song.parsed.map((_, i) => ({ label: first(i) ? `Line ${i + 1}: ${first(i)}…` : `Line ${i + 1}: (piano tune, no words)`, from: i, to: i }));
+    const tune = (i) => song.parsed[i].filter((e) => !e.rest && !e.tiedFrom).slice(0, 5).map((e) => NAMES[e.midi % 12]).join(' ');
+    const parts = song.parsed.map((_, i) => ({ label: `Line ${i + 1}: ${first(i) || tune(i)}…`, from: i, to: i }));
     song.sections.forEach(([name, a, b]) => parts.push({ label: `${name} (lines ${a + 1}–${b + 1})`, from: a, to: b }));
     parts.push({ label: `Whole song (${song.lines.length} lines)`, from: 0, to: song.lines.length - 1 });
     return parts;
